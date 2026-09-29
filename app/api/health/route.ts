@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 const startedAt = Date.now();
 
 export async function GET() {
-  const pool = getPoolStatus();
+  const pool = await getPoolStatus();
   const memory = process.memoryUsage();
   return NextResponse.json({
     ok: true,
