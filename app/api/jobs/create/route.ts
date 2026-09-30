@@ -4,6 +4,7 @@ import { enqueueJob } from "@/lib/jobs";
 import { corsJson } from "@/lib/cors";
 import crypto from "node:crypto";
 import { isAllowedBlobUrl } from "@/lib/blob-url";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,10 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, "job-create", 5, 60_000);
+  const blocked = rateLimitResponse(limited);
+  if (blocked) return blocked;
+
   try {
     const body = await req.json();
     const fileUrl = String(body?.fileUrl || "");
