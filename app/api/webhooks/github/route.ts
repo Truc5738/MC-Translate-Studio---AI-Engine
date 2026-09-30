@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
 import {
   eventIdFromRequest,
-  markWebhookProcessed,
   recordWebhookEvent
 } from "@/lib/webhooks";
 
@@ -56,7 +55,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, duplicate: true, eventId });
   }
 
-  await markWebhookProcessed(eventId);
 
   return NextResponse.json({
     ok: true,
