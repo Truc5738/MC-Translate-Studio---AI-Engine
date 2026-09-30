@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { send } from "@vercel/queue";
 import crypto from "node:crypto";
-import { eventIdFromRequest, recordWebhookEvent } from "@/lib/webhooks";
+import {
+  eventIdFromRequest,
+  markWebhookProcessed,
+  recordWebhookEvent
+} from "@/lib/webhooks";
 import { enqueueJob } from "@/lib/jobs";
 
 export const runtime = "nodejs";
@@ -28,39 +32,70 @@ function translationPayload(payload: any) {
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
-  if (rawBody.length > 1024 * 1024) return NextResponse.json({ ok: false, error: "Payload too large" }, { status: 413 });
+  if (rawBody.length > 1024 * 1024) {
+    return NextResponse.json({ ok: false, error: "Payload too large" }, { status: 413 });
+  }
+
   if (!verifyGitHub(rawBody, req.headers.get("x-hub-signature-256"))) {
     return NextResponse.json({ ok: false, error: "Invalid GitHub signature" }, { status: 401 });
   }
 
   let payload: any;
-  try { payload = JSON.parse(rawBody); } catch {
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
 
-  const eventId = eventIdFromRequest(req.headers, payload);
-  const type = req.headers.get("x-github-event") || "unknown";
-  const result = await recordWebhookEvent({
-    id: eventId, type, source: "github",
-    receivedAt: new Date().toISOString(), payload
-  });
+  try {
+    const eventId = eventIdFromRequest(req.headers, payload);
+    const type = req.headers.get("x-github-event") || "unknown";
 
-  if (result.duplicate) return NextResponse.json({ ok: true, duplicate: true, eventId });
+    const result = await recordWebhookEvent({
+      id: eventId,
+      type,
+      source: "github",
+      receivedAt: new Date().toISOString(),
+      payload
+    });
 
-  const requested = type === "translate.requested" || type === "repository_dispatch" && payload?.action === "translate.requested";
-  const jobPayload = translationPayload(payload);
-
-  if (requested) {
-    if (!jobPayload.fileUrl) {
-      return NextResponse.json({ ok: false, error: "Translation event requires translate.fileUrl or fileUrl" }, { status: 400 });
+    if (result.duplicate) {
+      return NextResponse.json({ ok: true, duplicate: true, eventId });
     }
-    await enqueueJob(eventId, "translate", jobPayload);
-    await send("mc-translate", { jobId: eventId, type: "translate", payload: jobPayload }, { idempotencyKey: eventId });
-  }
 
-  return NextResponse.json({
-    ok: true, accepted: true, eventId, eventType: type,
-    queued: requested,
-    status: requested ? "queued" : "received"
-  }, { status: 202 });
+    const requested =
+      type === "translate.requested" ||
+      (type === "repository_dispatch" && payload?.action === "translate.requested");
+
+    const jobPayload = translationPayload(payload);
+
+    if (requested) {
+      if (!jobPayload.fileUrl) {
+        return NextResponse.json({
+          ok: false,
+          error: "Translation event requires translate.fileUrl or fileUrl"
+        }, { status: 400 });
+      }
+
+      await enqueueJob(eventId, "translate", jobPayload);
+      await send(
+        "mc-translate",
+        { jobId: eventId, type: "translate", payload: jobPayload },
+        { idempotencyKey: eventId }
+      );
+    }
+
+    await markWebhookProcessed(eventId);
+
+    return NextResponse.json({
+      ok: true,
+      accepted: true,
+      eventId,
+      eventType: type,
+      queued: requested,
+      status: requested ? "queued" : "received"
+    }, { status: 202 });
+  } catch (error: any) {
+    return NextResponse.json({ ok: false, error: error?.message || "Webhook processing failed" }, { status: 500 });
+  }
 }
