@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { send } from "@vercel/queue";
 import {
   eventIdFromRequest,
   recordWebhookEvent,
@@ -43,6 +44,9 @@ export async function POST(req: NextRequest) {
     });
 
     if (result.duplicate) {
+      if (type === "translate.requested") {
+        try { await send("mc-translate", { jobId: eventId, type: "translate", payload }, { idempotencyKey: eventId }); } catch {}
+      }
       return NextResponse.json({
         ok: true,
         duplicate: true,
