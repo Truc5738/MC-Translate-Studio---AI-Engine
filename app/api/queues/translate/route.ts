@@ -5,7 +5,7 @@ import { generateTranslation } from "@/lib/ai";
 import { put } from "@vercel/blob";
 import crypto from "node:crypto";
 
-export const POST = handleCallback(async (message: any, metadata: any) => {
+const queueHandler = handleCallback(async (message: any, metadata: any) => {
   const jobId = String(message.jobId || metadata.messageId);
   try {
     const p = message.payload || {};
@@ -32,3 +32,7 @@ export const POST = handleCallback(async (message: any, metadata: any) => {
     throw error;
   }
 });
+
+export async function POST(request: Request) {
+  return queueHandler({ request });
+}
