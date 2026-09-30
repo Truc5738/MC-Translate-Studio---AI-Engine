@@ -1,5 +1,6 @@
-type Bucket = { count: number; resetAt: number };
+import { corsHeaders } from "@/lib/cors";
 
+type Bucket = { count: number; resetAt: number };
 const buckets = new Map<string, Bucket>();
 
 function key(req: Request, name: string) {
@@ -16,7 +17,7 @@ export function rateLimit(req: Request, name: string, limit: number, windowMs: n
 
   if (!current || current.resetAt <= now) {
     buckets.set(k, { count: 1, resetAt: now + windowMs });
-    return { allowed: true, remaining: limit - 1, retryAfter: 0 };
+    return { allowed: true, remaining: Math.max(0, limit - 1), retryAfter: 0 };
   }
 
   if (current.count >= limit) {
@@ -24,10 +25,10 @@ export function rateLimit(req: Request, name: string, limit: number, windowMs: n
   }
 
   current.count += 1;
-  return { allowed: true, remaining: limit - current.count, retryAfter: 0 };
+  return { allowed: true, remaining: Math.max(0, limit - current.count), retryAfter: 0 };
 }
 
-export function rateLimitResponse(result: ReturnType<typeof rateLimit>) {
+export function rateLimitResponse(req: Request, result: ReturnType<typeof rateLimit>) {
   if (result.allowed) return null;
   return new Response(JSON.stringify({
     ok: false,
@@ -38,7 +39,8 @@ export function rateLimitResponse(result: ReturnType<typeof rateLimit>) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Retry-After": String(result.retryAfter),
-      "Cache-Control": "no-store"
+      "Cache-Control": "no-store",
+      ...corsHeaders(req)
     }
   });
 }
