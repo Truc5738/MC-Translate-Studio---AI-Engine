@@ -11,7 +11,7 @@ export async function OPTIONS(req: NextRequest) {
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const limited = rateLimit(req, "job-status", 120, 60_000);
-  const blocked = rateLimitResponse(limited);
+  const blocked = rateLimitResponse(req, limited);
   if (blocked) return blocked;
 
   const { id } = await params;
