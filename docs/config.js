@@ -1,4 +1,2 @@
-// Tùy chọn: đặt URL backend nếu frontend GitHub Pages và backend ở domain khác.
-// Ví dụ: window.MC_TRANSLATE_API_BASE = "https://translate-api.example.com";
-// Để trống nếu frontend và API dùng cùng origin.
-window.MC_TRANSLATE_API_BASE = "";
+// Backend Vercel production/branch endpoint used by the GitHub Pages frontend.
+window.MC_TRANSLATE_API_BASE = "https://mc-translate-studio-ai-engine-git-main-mynodejs1.vercel.app";
