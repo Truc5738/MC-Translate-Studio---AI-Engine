@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   eventIdFromRequest,
-  markWebhookFailed,
-  markWebhookProcessed,
   recordWebhookEvent,
   verifyWebhookSignature
 } from "@/lib/webhooks";
@@ -52,10 +50,6 @@ export async function POST(req: NextRequest) {
         status: "already_received"
       });
     }
-
-    // The intake endpoint is intentionally fast. A durable event is recorded first.
-    // Downstream processors can consume the event without trusting the sender again.
-    await markWebhookProcessed(eventId);
 
     return NextResponse.json(
       {
