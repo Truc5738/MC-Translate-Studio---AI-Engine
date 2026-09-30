@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 
+const DEFAULT_STATIC_ORIGINS = ["https://truc5738.github.io"];
+
 export function allowedOrigin(req: Request) {
   const configured = (process.env.STATIC_SITE_ORIGINS || process.env.STATIC_SITE_ORIGIN || "")
     .split(",").map(x => x.trim()).filter(Boolean);
+  const allowed = configured.length ? configured : DEFAULT_STATIC_ORIGINS;
   const origin = req.headers.get("origin") || "";
   if (!origin) return "";
-  if (configured.includes("*")) return "*";
-  return configured.includes(origin) ? origin : "";
+  if (allowed.includes("*")) return "*";
+  return allowed.includes(origin) ? origin : "";
 }
 
 export function corsHeaders(req: Request) {
