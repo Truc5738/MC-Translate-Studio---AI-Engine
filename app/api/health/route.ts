@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { getPoolStatus } from "@/lib/ai-pool";
+import { poolStatus } from "@/lib/ai-pool";
+import { getAIKeys } from "@/lib/keys";
 
 export const runtime = "nodejs";
 const startedAt = Date.now();
 
 export async function GET() {
-  const pool = await getPoolStatus();
+  const pool = poolStatus(await getAIKeys());
   const memory = process.memoryUsage();
   return NextResponse.json({
     ok: true,
