@@ -10,7 +10,6 @@ const queueHandler = handleCallback(async (message: any, metadata: any) => {
   try {
     const p = message.payload || {};
     if (!p.fileUrl) throw new Error("translate job requires fileUrl");
-    if (!process.env.BLOB_READ_WRITE_TOKEN) throw new Error("BLOB_READ_WRITE_TOKEN is required");
 
     const response = await fetch(String(p.fileUrl));
     if (!response.ok) throw new Error(`Input download failed: HTTP ${response.status}`);
