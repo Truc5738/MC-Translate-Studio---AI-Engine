@@ -7,6 +7,7 @@ import {
   recordWebhookEvent
 } from "@/lib/webhooks";
 import { enqueueJob } from "@/lib/jobs";
+import { isAllowedBlobUrl } from "@/lib/blob-url";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
     const jobPayload = translationPayload(payload);
 
     if (requested) {
-      if (!jobPayload.fileUrl) {
+      if (!jobPayload.fileUrl || !isAllowedBlobUrl(String(jobPayload.fileUrl))) {
         return NextResponse.json({
           ok: false,
           error: "Translation event requires translate.fileUrl or fileUrl"
