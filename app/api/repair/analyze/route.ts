@@ -39,7 +39,7 @@ export async function OPTIONS(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, "repair-analyze", 10, 60_000);
-  const blocked = rateLimitResponse(limited);
+  const blocked = rateLimitResponse(req, limited);
   if (blocked) return blocked;
 
   try {
