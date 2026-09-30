@@ -3,19 +3,9 @@ import { send } from "@vercel/queue";
 import { enqueueJob } from "@/lib/jobs";
 import { corsJson } from "@/lib/cors";
 import crypto from "node:crypto";
+import { isAllowedBlobUrl } from "@/lib/blob-url";
 
 export const runtime = "nodejs";
-
-function isAllowedBlobUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" &&
-      (url.hostname.endsWith(".public.blob.vercel-storage.com") ||
-       url.hostname.endsWith(".private.blob.vercel-storage.com"));
-  } catch {
-    return false;
-  }
-}
 
 export async function OPTIONS(req: NextRequest) {
   return corsJson(req, { ok: true });
