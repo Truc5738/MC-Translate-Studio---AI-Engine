@@ -1,8 +1,14 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/process",
-      "schedule": "* * * * *"
+  "functions": {
+    "app/api/queues/translate/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "mc-translate",
+          "retryAfterSeconds": 30,
+          "initialDelaySeconds": 0
+        }
+      ]
     }
-  ]
+  }
 }
