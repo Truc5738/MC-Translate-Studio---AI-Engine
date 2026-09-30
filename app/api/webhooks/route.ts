@@ -7,6 +7,7 @@ import {
   verifyWebhookSignature
 } from "@/lib/webhooks";
 import { enqueueJob } from "@/lib/jobs";
+import { isAllowedBlobUrl } from "@/lib/blob-url";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     if (type === "translate.requested") {
       const jobPayload = payload?.payload || payload;
-      if (!jobPayload?.fileUrl) {
+      if (!jobPayload?.fileUrl || !isAllowedBlobUrl(String(jobPayload.fileUrl))) {
         return NextResponse.json(
           { ok: false, error: "translate.requested requires fileUrl" },
           { status: 400 }
