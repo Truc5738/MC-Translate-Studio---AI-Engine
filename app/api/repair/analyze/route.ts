@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import JSZip from "jszip";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -32,7 +33,15 @@ function scanText(path: string, text: string, out: Diagnostic[]) {
   }
 }
 
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204 });
+}
+
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, "repair-analyze", 10, 60_000);
+  const blocked = rateLimitResponse(limited);
+  if (blocked) return blocked;
+
   try {
     const form = await req.formData();
     const file = form.get("file");
@@ -56,15 +65,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      ok:true,
-      diagnostics,
-      summary:{
-        errors:diagnostics.filter(x=>x.severity==="error").length,
-        warnings:diagnostics.filter(x=>x.severity==="warning").length,
-        info:diagnostics.filter(x=>x.severity==="info").length
-      }
-    });
+    return NextResponse.json({ok:true,diagnostics,summary:{
+      errors:diagnostics.filter(x=>x.severity==="error").length,
+      warnings:diagnostics.filter(x=>x.severity==="warning").length,
+      info:diagnostics.filter(x=>x.severity==="info").length
+    }});
   } catch (e: any) {
     return NextResponse.json({error:e?.message || "Không thể phân tích file."},{status:400});
   }
