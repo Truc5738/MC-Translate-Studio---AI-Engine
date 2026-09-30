@@ -31,7 +31,6 @@ export async function GET(req: NextRequest) {
       if (job.type !== "translate") throw new Error("Only translate jobs are enabled in this processor");
       const p = job.payload || {};
       if (!p.fileUrl) throw new Error("translate.requested requires fileUrl");
-      if (!process.env.BLOB_READ_WRITE_TOKEN) throw new Error("BLOB_READ_WRITE_TOKEN is required");
 
       const input = await fetch(String(p.fileUrl));
       if (!input.ok) throw new Error(`Input download failed: HTTP ${input.status}`);
