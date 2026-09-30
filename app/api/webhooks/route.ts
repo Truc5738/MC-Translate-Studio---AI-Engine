@@ -55,6 +55,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    if (type === "translate.requested") {
+      await send("mc-translate", { jobId: eventId, type: "translate", payload }, { idempotencyKey: eventId });
+    }
+
     return NextResponse.json(
       {
         ok: true,
