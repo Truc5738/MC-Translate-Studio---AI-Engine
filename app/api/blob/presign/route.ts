@@ -3,6 +3,7 @@ import { issueSignedToken, presignUrl } from "@vercel/blob";
 import crypto from "node:crypto";
 import { corsJson } from "@/lib/cors";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { createUploadSession } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 const ALLOWED = /\.(mcaddon|mcpack|zip|jar)$/i;
@@ -18,7 +19,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const fileName = String(body?.fileName || "pack.zip").replace(/[\r\n"\\/]/g, "_").slice(0, 240);
+    const fileName = String(body?.fileName || "pack.zip")
+      .replace(/[\r\n"\\/]/g, "_")
+      .slice(0, 240);
     const size = Number(body?.size || 0);
     const contentType = String(body?.contentType || "application/zip").slice(0, 120);
     const max = Number(process.env.MAX_FILE_MB || 50) * 1024 * 1024;
@@ -31,6 +34,7 @@ export async function POST(req: NextRequest) {
     }
 
     const pathname = "uploads/" + crypto.randomUUID() + "-" + fileName;
+    const uploadId = crypto.randomUUID();
     const expiresAt = Date.now() + 15 * 60 * 1000;
 
     const token = await issueSignedToken({
@@ -51,8 +55,18 @@ export async function POST(req: NextRequest) {
       allowOverwrite: false
     });
 
+    await createUploadSession({
+      id: uploadId,
+      pathname,
+      fileName,
+      size,
+      contentType,
+      expiresAt
+    });
+
     return corsJson(req, {
       ok: true,
+      uploadId,
       uploadUrl: presignedUrl,
       fileUrl: presignedUrl.split("?")[0],
       pathname,
