@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   const memory = process.memoryUsage();
   const activeKeys = pool.filter((x) => x.enabled);
   const readyKeys = activeKeys.filter((x) => x.status === "ready");
-  const ok = database === "ok" && readyKeys.length > 0;
+  const ok = database === "ok";
 
   return corsJson(req, {
     ok,
