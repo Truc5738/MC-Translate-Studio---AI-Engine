@@ -1,33 +1,97 @@
 import { handleCallback } from "@vercel/queue";
-import { completeJob, failJob } from "@/lib/jobs";
+import { completeJob, failJob, getJob, claimJob } from "@/lib/jobs";
 import { translateZip } from "@/lib/pack";
 import { generateTranslation } from "@/lib/ai";
-import { put } from "@vercel/blob";
+import { issueSignedToken, presignUrl, put } from "@vercel/blob";
 import crypto from "node:crypto";
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const queueHandler = handleCallback(async (message: any, metadata: any) => {
   const jobId = String(message.jobId || metadata.messageId);
-  try {
-    const p = message.payload || {};
-    if (!p.fileUrl) throw new Error("translate job requires fileUrl");
 
-    const response = await fetch(String(p.fileUrl));
+  try {
+    const existing = await getJob(jobId);
+    if (!existing) throw new Error("Translation job was not found in PostgreSQL");
+    if (existing.status === "completed") return;
+
+    const claimed = await claimJob(jobId);
+    if (!claimed) {
+      const latest = await getJob(jobId);
+      if (latest?.status === "completed") return;
+      if (latest?.status === "processing") return;
+      throw new Error("Translation job is not claimable");
+    }
+
+    const p = message.payload || claimed.payload || {};
+    if (!p.fileUrl || !p.pathname) throw new Error("translate job requires fileUrl and pathname");
+
+    const inputToken = await issueSignedToken({
+      pathname: String(p.pathname),
+      operations: ["get"],
+      validUntil: Date.now() + 10 * 60 * 1000
+    });
+    const { presignedUrl: inputUrl } = await presignUrl(inputToken, {
+      pathname: String(p.pathname),
+      operation: "get",
+      validUntil: Date.now() + 10 * 60 * 1000,
+      access: "private"
+    });
+
+    const response = await fetch(inputUrl);
     if (!response.ok) throw new Error(`Input download failed: HTTP ${response.status}`);
     const bytes = Buffer.from(await response.arrayBuffer());
+
     const max = Number(process.env.MAX_FILE_MB || 50) * 1024 * 1024;
     if (bytes.length > max) throw new Error(`Input exceeds ${max/1024/1024} MB`);
 
     const target = String(p.target || "Vietnamese");
-    const result = await translateZip(bytes,target,(source,language,context)=>generateTranslation(source,language,context));
-    const name = String(p.fileName || "pack.zip").replace(/[\\r\\n"]/g,"_");
-    const ext = name.match(/\\.(mcaddon|mcpack|zip|jar)$/i)?.[0]?.toLowerCase() || ".zip";
-    const base = name.replace(/\\.(mcaddon|mcpack|zip|jar)$/i,"");
-    const blob = await put(`translations/${crypto.randomUUID()}-translated-${base}${ext}`,new Uint8Array(result.buffer),{access:"public"});
+    const result = await translateZip(
+      bytes,
+      target,
+      (source, language, context) => generateTranslation(source, language, context)
+    );
 
-    const output={jobId,status:"completed",url:blob.url,target,translatedFiles:result.translated,deliveryCount:metadata.deliveryCount};
-    await completeJob(jobId,output);
-  } catch(error:any) {
-    await failJob(jobId,error?.message||"Translation job failed",Number(metadata.deliveryCount||1)<4);
+    const name = String(p.fileName || "pack.zip").replace(/[\\r\\n"]/g, "_");
+    const ext = name.match(/\\.(mcaddon|mcpack|zip|jar)$/i)?.[0]?.toLowerCase() || ".zip";
+    const base = name.replace(/\\.(mcaddon|mcpack|zip|jar)$/i, "");
+    const pathname = `translations/${crypto.randomUUID()}-translated-${base}${ext}`;
+
+    await put(pathname, new Uint8Array(result.buffer), {
+      access: "private",
+      allowOverwrite: false
+    });
+
+    const outputToken = await issueSignedToken({
+      pathname,
+      operations: ["get"],
+      validUntil: Date.now() + 30 * 60 * 1000
+    });
+    const { presignedUrl: downloadUrl } = await presignUrl(outputToken, {
+      pathname,
+      operation: "get",
+      validUntil: Date.now() + 30 * 60 * 1000,
+      access: "private"
+    });
+
+    const output = {
+      jobId,
+      status: "completed",
+      url: downloadUrl,
+      expiresAt: Date.now() + 30 * 60 * 1000,
+      target,
+      translatedFiles: result.translated,
+      deliveryCount: metadata.deliveryCount
+    };
+
+    await completeJob(jobId, output);
+  } catch (error: any) {
+    const messageText = error?.message || "Translation job failed";
+    const current = await getJob(jobId);
+    if (current?.status === "processing") {
+      await failJob(jobId, messageText, Number(metadata.deliveryCount || 1) < 4);
+    }
     throw error;
   }
 });
