@@ -2,6 +2,7 @@ import { handleCallback } from "@vercel/queue";
 import { completeJob, failJob, getJob, claimJob } from "@/lib/jobs";
 import { translateZip } from "@/lib/pack";
 import { generateTranslation } from "@/lib/ai";
+import { translateLocal } from "@/lib/local-translator";
 import { issueSignedToken, presignUrl, put } from "@vercel/blob";
 import crypto from "node:crypto";
 
@@ -25,13 +26,14 @@ const queueHandler = handleCallback(async (message: any, metadata: any) => {
     }
 
     const p = message.payload || claimed.payload || {};
-    if (!p.fileUrl || !p.pathname) throw new Error("translate job requires fileUrl and pathname");
+    if (!p.pathname) throw new Error("translate job requires pathname");
 
     const inputToken = await issueSignedToken({
       pathname: String(p.pathname),
       operations: ["get"],
       validUntil: Date.now() + 10 * 60 * 1000
     });
+
     const { presignedUrl: inputUrl } = await presignUrl(inputToken, {
       pathname: String(p.pathname),
       operation: "get",
@@ -40,23 +42,29 @@ const queueHandler = handleCallback(async (message: any, metadata: any) => {
     });
 
     const response = await fetch(inputUrl);
-    if (!response.ok) throw new Error(`Input download failed: HTTP ${response.status}`);
+    if (!response.ok) throw new Error("Input download failed: HTTP " + response.status);
     const bytes = Buffer.from(await response.arrayBuffer());
 
     const max = Number(process.env.MAX_FILE_MB || 50) * 1024 * 1024;
-    if (bytes.length > max) throw new Error(`Input exceeds ${max/1024/1024} MB`);
+    if (bytes.length > max) throw new Error("Input exceeds " + max / 1024 / 1024 + " MB");
 
     const target = String(p.target || "Vietnamese");
+    const engine = p.engine === "local" ? "local" : "ai";
+    const customGlossary = p.glossary && typeof p.glossary === "object" ? p.glossary : {};
+
     const result = await translateZip(
       bytes,
       target,
-      (source, language, context) => generateTranslation(source, language, context)
+      (source: string, language: string, filePath: string) =>
+        engine === "local"
+          ? Promise.resolve(translateLocal(source, language, filePath, customGlossary))
+          : generateTranslation(source, language, filePath)
     );
 
     const name = String(p.fileName || "pack.zip").replace(/[\\r\\n"]/g, "_");
     const ext = name.match(/\\.(mcaddon|mcpack|zip|jar)$/i)?.[0]?.toLowerCase() || ".zip";
     const base = name.replace(/\\.(mcaddon|mcpack|zip|jar)$/i, "");
-    const pathname = `translations/${crypto.randomUUID()}-translated-${base}${ext}`;
+    const pathname = "translations/" + crypto.randomUUID() + "-translated-" + base + ext;
 
     await put(pathname, Buffer.from(result.buffer), {
       access: "private",
@@ -68,6 +76,7 @@ const queueHandler = handleCallback(async (message: any, metadata: any) => {
       operations: ["get"],
       validUntil: Date.now() + 30 * 60 * 1000
     });
+
     const { presignedUrl: downloadUrl } = await presignUrl(outputToken, {
       pathname,
       operation: "get",
@@ -81,6 +90,7 @@ const queueHandler = handleCallback(async (message: any, metadata: any) => {
       url: downloadUrl,
       expiresAt: Date.now() + 30 * 60 * 1000,
       target,
+      engine,
       translatedFiles: result.translated,
       deliveryCount: metadata.deliveryCount
     };
