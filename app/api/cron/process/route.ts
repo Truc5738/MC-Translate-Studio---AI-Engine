@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       const name = String(p.fileName || "pack.zip").replace(/[\\r\\n"]/g,"_");
       const ext = name.match(/\\.(mcaddon|mcpack|zip|jar)$/i)?.[0]?.toLowerCase() || ".zip";
       const base = name.replace(/\\.(mcaddon|mcpack|zip|jar)$/i,"");
-      const blob = await put(`translations/${crypto.randomUUID()}-translated-${base}${ext}`,new Uint8Array(translated.buffer),{access:"public"});
+      const blob = await put(`translations/${crypto.randomUUID()}-translated-${base}${ext}`,Buffer.from(translated.buffer),{access:"public"});
 
       const result={jobId:job.id,status:"completed",url:blob.url,target,translatedFiles:translated.translated};
       await completeJob(job.id,result);
