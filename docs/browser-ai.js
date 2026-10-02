@@ -5,6 +5,7 @@
 const MCTS_TRANSFORMERS_VERSION = "4.3.0";
 const MCTS_MODEL_NLLB = "Xenova/nllb-200-distilled-600M";
 const MCTS_MODEL_EN_VI = "Xenova/opus-mt-en-vi";
+const MCTS_MODEL_VI_EN = "Xenova/opus-mt-vi-en";
 const JSZIP_CDN = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm";
 const TRANSFORMERS_CDN =
   "https://cdn.jsdelivr.net/npm/@huggingface/transformers@" + MCTS_TRANSFORMERS_VERSION;
@@ -63,7 +64,9 @@ function loadJSZip() {
 }
 
 function modelKey(source, target) {
-  return source === "English" && target === "Vietnamese" ? "opus-en-vi" : "nllb";
+  if (source === "English" && target === "Vietnamese") return "opus-en-vi";
+  if (source === "Vietnamese" && target === "English") return "opus-vi-en";
+  return "nllb";
 }
 
 function chooseDevice() {
@@ -77,7 +80,10 @@ async function getPipeline(source, target, onProgress) {
   const promise = (async () => {
     const { pipeline } = await loadTransformers();
     const device = chooseDevice();
-    const model = key === "opus-en-vi" ? MCTS_MODEL_EN_VI : MCTS_MODEL_NLLB;
+    const model =
+      key === "opus-en-vi" ? MCTS_MODEL_EN_VI :
+      key === "opus-vi-en" ? MCTS_MODEL_VI_EN :
+      MCTS_MODEL_NLLB;
 
     const report = data => {
       if (!onProgress) return;
@@ -536,7 +542,10 @@ async function translateZipInBrowser(file, options = {}) {
     blob,
     translated,
     entries,
-    model: modelKey(source, target) === "opus-en-vi" ? MCTS_MODEL_EN_VI : MCTS_MODEL_NLLB,
+    model:
+      modelKey(source, target) === "opus-en-vi" ? MCTS_MODEL_EN_VI :
+      modelKey(source, target) === "opus-vi-en" ? MCTS_MODEL_VI_EN :
+      MCTS_MODEL_NLLB,
     device: chooseDevice()
   };
 }
@@ -545,7 +554,8 @@ window.MC_TRANSLATE_BROWSER_AI = {
   translateZipInBrowser,
   models: {
     nllb: MCTS_MODEL_NLLB,
-    enVi: MCTS_MODEL_EN_VI
+    enVi: MCTS_MODEL_EN_VI,
+    viEn: MCTS_MODEL_VI_EN
   },
   languages: MCTS_LANGS
 };
