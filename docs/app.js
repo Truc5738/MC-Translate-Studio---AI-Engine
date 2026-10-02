@@ -1,21 +1,38 @@
 const configuredBase=(window.MC_TRANSLATE_API_BASE||"").replace(/\/$/,"");
 const savedBase=localStorage.getItem("mc_translate_api_base")||configuredBase;
-const savedEngine=localStorage.getItem("mc_translate_engine")||"local";
+const savedEngine=localStorage.getItem("mc_translate_engine")||"browser-ai";
+const savedSource=localStorage.getItem("mc_translate_source")||"English";
+const savedTarget=localStorage.getItem("mc_translate_target")||"Vietnamese";
 const savedGlossary=localStorage.getItem("mc_translate_glossary")||"";
 const $=id=>document.getElementById(id);
 
 $("apiBase").value=savedBase;
 $("engine").value=savedEngine;
+$("source").value=savedSource;
+$("target").value=savedTarget;
 $("glossary").value=savedGlossary;
 
 $("apiBase").addEventListener("change",()=>{
  localStorage.setItem("mc_translate_api_base",$("apiBase").value.trim().replace(/\/$/,""));
  refreshRepairLink();
 });
+$("apiBase").addEventListener("input",refreshRepairLink);
+
 $("engine").addEventListener("change",()=>{
  localStorage.setItem("mc_translate_engine",$("engine").value);
- updateEngineHint();
+ updateEngineUI();
 });
+
+$("source").addEventListener("change",()=>{
+ localStorage.setItem("mc_translate_source",$("source").value);
+ updateModelHint();
+});
+
+$("target").addEventListener("change",()=>{
+ localStorage.setItem("mc_translate_target",$("target").value);
+ updateModelHint();
+});
+
 $("glossary").addEventListener("input",()=>{
  localStorage.setItem("mc_translate_glossary",$("glossary").value);
 });
@@ -23,9 +40,18 @@ $("glossary").addEventListener("input",()=>{
 function apiBase(){
  return ($("apiBase").value.trim()||configuredBase).replace(/\/$/,"");
 }
-function setStatus(message){$("status").textContent=message}
-function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
-function refreshRepairLink(){ $("repairLink").href=apiBase()+"/repair"; }
+
+function setStatus(message){
+ $("status").textContent=message;
+}
+
+function sleep(ms){
+ return new Promise(r=>setTimeout(r,ms));
+}
+
+function refreshRepairLink(){
+ $("repairLink").href=(apiBase()||"#")+"/repair";
+}
 
 function parseGlossary(){
  const out={};
@@ -41,33 +67,118 @@ function parseGlossary(){
  return out;
 }
 
-function updateEngineHint(){
- const local=$("engine").value==="local";
- $("engineHint").textContent=local
-  ?"Local dùng bộ từ điển cục bộ + glossary tùy chỉnh. Không gọi Gemini/Groq."
-  :"AI dùng Gemini/Groq server-side; API key không được gửi xuống trình duyệt.";
+function updateModelHint(){
+ const browser=$("engine").value==="browser-ai";
+ if(!browser){
+  $("modelHint").textContent="";
+  return;
+ }
+ const source=$("source").value;
+ const target=$("target").value;
+ if(source===target){
+  $("modelHint").textContent="Hãy chọn ngôn ngữ nguồn khác ngôn ngữ đích.";
+  return;
+ }
+ $("modelHint").textContent=(source==="English"&&target==="Vietnamese")
+  ?"English → Vietnamese dùng Xenova/opus-mt-en-vi, model chuyên cho cặp này."
+  :"Cặp này dùng Xenova/nllb-200-distilled-600M multilingual.";
+}
+
+function updateEngineUI(){
+ const engine=$("engine").value;
+ const browser=engine==="browser-ai";
+ $("browserAiOptions").style.display=browser?"block":"none";
+ $("apiBase").disabled=browser;
+ $("apiBase").style.opacity=browser?".55":"1";
+
+ if(browser){
+  $("engineHint").textContent="Browser AI chạy trên thiết bị, không cần API key và không upload file lên backend. Lần đầu cần tải model.";
+  $("translateButton").textContent="Dịch bằng Browser AI và tải file";
+ }else if(engine==="local"){
+  $("engineHint").textContent="Local Rules: dùng bộ từ điển cục bộ + glossary tùy chỉnh. Không gọi Gemini/Groq.";
+  $("translateButton").textContent="Dịch bằng Local Rules";
+ }else{
+  $("engineHint").textContent="AI Cloud: Gemini/Groq chạy server-side; API key không được gửi xuống trình duyệt.";
+  $("translateButton").textContent="Dịch bằng AI Cloud";
+ }
+ updateModelHint();
+}
+
+function downloadBlob(blob,fileName){
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;
+ a.download=fileName;
+ a.rel="noopener";
+ document.body.appendChild(a);
+ a.click();
+ a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function browserProgress(info){
+ if(info.phase==="model"){
+  const p=typeof info.progress==="number" ? " "+Math.round(info.progress)+"%" : "";
+  setStatus("Đang tải/khởi động Browser AI"+p+" | "+(info.label||"model"));
+  return;
+ }
+ if(info.phase==="text"){
+  const p=info.total?Math.round((info.current/info.total)*100):0;
+  setStatus("Browser AI đang dịch: "+p+"% | "+(info.path||"file"));
+  return;
+ }
+ if(info.phase==="files"){
+  const p=info.total?Math.round((info.current/info.total)*100):0;
+  setStatus("Browser AI đang xử lý pack: "+p+"% | "+(info.label||""));
+  return;
+ }
+ if(info.phase==="zip") setStatus("Đang đóng gói file dịch...");
 }
 
 refreshRepairLink();
-updateEngineHint();
-$("apiBase").addEventListener("input",refreshRepairLink);
+updateEngineUI();
+
 $("file").addEventListener("change",e=>{
  $("filename").textContent=e.target.files[0]?.name||"Chưa chọn file";
 });
 
-$("translate").addEventListener("click",async()=>{
+$("translateButton").addEventListener("click",async()=>{
  const file=$("file").files[0];
- if(!file){setStatus("Hãy chọn file trước.");return}
+ if(!file){
+  setStatus("Hãy chọn file trước.");
+  return;
+ }
 
- const base=apiBase();
- if(!base){setStatus("Hãy nhập Backend API URL.");return}
-
- const engine=$("engine").value==="local"?"local":"ai";
+ const engine=$("engine").value;
  const glossary=parseGlossary();
-
- $("translate").disabled=true;
+ $("translateButton").disabled=true;
 
  try{
+  if(engine==="browser-ai"){
+   const browserAI=window.MC_TRANSLATE_BROWSER_AI;
+   if(!browserAI) throw new Error("Browser AI chưa được nạp. Hãy tải lại trang.");
+
+   const source=$("source").value;
+   const target=$("target").value;
+   if(source===target) throw new Error("Ngôn ngữ nguồn và đích phải khác nhau.");
+
+   setStatus("1/3 Đang mở Browser AI...");
+   const result=await browserAI.translateZipInBrowser(file,{
+    source,
+    target,
+    glossary,
+    onProgress:browserProgress
+   });
+
+   setStatus("2/3 Đang chuẩn bị file tải xuống...");
+   downloadBlob(result.blob,"translated-"+file.name);
+   setStatus("3/3 Hoàn tất. "+result.translated+" file text đã được dịch. Model: "+result.model+" | "+result.device);
+   return;
+  }
+
+  const base=apiBase();
+  if(!base) throw new Error("Hãy nhập Backend API URL.");
+
   setStatus("1/4 Đang tạo phiên upload an toàn...");
   const pre=await fetch(base+"/api/blob/presign",{
    method:"POST",
@@ -91,7 +202,7 @@ $("translate").addEventListener("click",async()=>{
   if(!put.ok) throw new Error("Upload Blob thất bại: HTTP "+put.status);
 
   setStatus(engine==="local"
-   ?"3/4 Đang dịch bằng Local Engine..."
+   ?"3/4 Đang dịch bằng Local Rules..."
    :"3/4 Đang xếp job AI vào Queue...");
 
   const queued=await fetch(base+"/api/jobs/create",{
@@ -112,7 +223,6 @@ $("translate").addEventListener("click",async()=>{
 
   for(let i=0;i<180;i++){
    await sleep(2000);
-
    const r=await fetch(base+"/api/jobs/"+encodeURIComponent(id));
    const d=await r.json();
    if(!r.ok) throw new Error(d.error||"Không đọc được trạng thái job");
@@ -141,8 +251,8 @@ $("translate").addEventListener("click",async()=>{
 
   throw new Error("Job vẫn đang xử lý. Hãy kiểm tra lại sau bằng Job ID: "+id);
  }catch(e){
-  setStatus(e.message||"Có lỗi xảy ra.");
+  setStatus(e?.message||"Có lỗi xảy ra.");
  }finally{
-  $("translate").disabled=false;
+  $("translateButton").disabled=false;
  }
 });
