@@ -23,7 +23,7 @@ Web app Next.js cho dịch và chuẩn hóa Minecraft Addon, Pack và Java/Paper
 - Bảo vệ identifier, namespace, placeholder, URL, command, selector, UUID và Minecraft formatting code.
 - Xuất lại đúng loại file đầu vào.
 - **Browser AI:** dịch tại thiết bị và tải file kết quả trực tiếp, không tạo Job/Blob/Queue.
-- English → Vietnamese dùng model dịch `Xenova/opus-mt-en-vi`.
+- English → Vietnamese dùng `Xenova/opus-mt-en-vi`; Vietnamese → English dùng `Xenova/opus-mt-vi-en`.
 - Các cặp ngôn ngữ khác dùng multilingual `Xenova/nllb-200-distilled-600M`.
 - Browser AI tự ưu tiên WebGPU và có fallback WASM; model có thể được cache trong trình duyệt.
 - `Local Rules` cho phép glossary tùy chỉnh ngay trên giao diện.
