@@ -1,6 +1,6 @@
 # MC Translate Studio — AI Engine
 
-Web app Next.js cho dịch và chuẩn hóa Minecraft Addon, Pack và Java/Paper plugin bằng Gemini + Groq.
+Web app Next.js cho dịch và chuẩn hóa Minecraft Addon, Pack và Java/Paper plugin bằng Local Engine hoặc Gemini + Groq.
 
 ## Kiến trúc production
 
@@ -11,6 +11,7 @@ Web app Next.js cho dịch và chuẩn hóa Minecraft Addon, Pack và Java/Paper
 - **Upload:** Vercel Blob với signed PUT URL, file đi thẳng từ trình duyệt lên Blob.
 - **Queue:** Vercel Queues topic `mc-translate`.
 - **Job state:** PostgreSQL.
+- **Local Engine:** dịch không cần AI API bằng bộ từ điển và glossary tùy chỉnh.
 - **AI:** pool tối đa **20 API slots tổng cộng**, mỗi slot là Gemini hoặc Groq.
 - **Admin:** password + HttpOnly session cookie; API keys được mã hóa AES-256-GCM khi lưu PostgreSQL.
 
@@ -22,6 +23,7 @@ Web app Next.js cho dịch và chuẩn hóa Minecraft Addon, Pack và Java/Paper
 - Xuất lại đúng loại file đầu vào.
 - Direct browser upload lên Blob, không đẩy file lớn qua Next.js request body.
 - Queue xử lý nền và polling Job ID.
+- Chọn engine `Local` để không dùng AI API; glossary có thể tùy chỉnh ngay trên giao diện.
 - AI pool tự chuyển key khi gặp lỗi/rate limit và có cooldown.
 - Admin Panel quản lý 20 API slots, xem pool status, webhook events và translation jobs.
 - Repair Center phân tích manifest, plugin.yml, JSON/YAML/text và server log mà không thực thi code upload.
@@ -111,6 +113,7 @@ Queue Consumer
     |
     +--> PostgreSQL: processing/completed/failed
     |
+    +--> Local Engine (không cần AI API)
     +--> Gemini/Groq AI pool
     |
     v
