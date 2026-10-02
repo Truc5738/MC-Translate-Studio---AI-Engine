@@ -47,6 +47,30 @@ export async function enqueueJob(id: string, type: JobType, payload: unknown) {
   return { created: rows.length > 0, id };
 }
 
+export async function getJob(id: string) {
+  const client = db();
+  if (!client) return null;
+  await ensureJobTables();
+  const rows = await client`
+    SELECT id, type, status, payload, result, attempts, error, created_at, started_at, completed_at
+    FROM mc_jobs WHERE id = ${id} LIMIT 1
+  `;
+  return rows[0] || null;
+}
+
+export async function claimJob(id: string) {
+  const client = db();
+  if (!client) throw new Error("POSTGRES_URL is required for queued jobs");
+  await ensureJobTables();
+  const rows = await client`
+    UPDATE mc_jobs
+    SET status = 'processing', attempts = attempts + 1, started_at = NOW(), error = NULL
+    WHERE id = ${id} AND status = 'pending' AND available_at <= NOW()
+    RETURNING id, type, payload, attempts
+  `;
+  return rows[0] || null;
+}
+
 export async function claimJobs(limit = 2) {
   const client = db();
   if (!client) return [];
@@ -91,13 +115,13 @@ export async function failJob(id: string, error: string, retry = true) {
       SET status = 'pending',
           available_at = NOW() + INTERVAL '30 seconds' * LEAST(attempts, 10),
           error = ${error.slice(0, 2000)}
-      WHERE id = ${id}
+      WHERE id = ${id} AND status = 'processing'
     `;
   } else {
     await client`
       UPDATE mc_jobs
       SET status = 'failed', error = ${error.slice(0, 2000)}
-      WHERE id = ${id}
+      WHERE id = ${id} AND status = 'processing'
     `;
   }
 }
