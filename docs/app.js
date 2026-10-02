@@ -87,19 +87,23 @@ function updateModelHint(){
 function updateEngineUI(){
  const engine=$("engine").value;
  const browser=engine==="browser-ai";
- $("browserAiOptions").style.display=browser?"block":"none";
- $("apiBase").disabled=browser;
- $("apiBase").style.opacity=browser?".55":"1";
+ $("browserAiOptions").style.display=browser?"grid":"none";
+ $("cloudUrl").style.display=engine==="ai"?"block":"none";
+ $("apiBase").disabled=browser||engine==="local";
+ $("apiBase").style.opacity=browser||engine==="local"?".45":"1";
+ document.querySelectorAll(".engine-tab").forEach(tab=>{
+   tab.classList.toggle("active",tab.dataset.engine===engine);
+ });
 
  if(browser){
-  $("engineHint").textContent="Browser AI chạy trên thiết bị, không cần API key và không upload file lên backend. Lần đầu cần tải model.";
-  $("translateButton").textContent="Dịch bằng Browser AI và tải file";
+  $("engineHint").textContent="Browser AI runs on your device. No API key and no pack upload to the backend.";
+  $("translateButton").innerHTML="Translate with Browser AI <span>↗</span>";
  }else if(engine==="local"){
-  $("engineHint").textContent="Local Rules: dùng bộ từ điển cục bộ + glossary tùy chỉnh. Không gọi Gemini/Groq.";
-  $("translateButton").textContent="Dịch bằng Local Rules";
+  $("engineHint").textContent="Local Rules uses built-in rules and your custom glossary. No AI API.";
+  $("translateButton").innerHTML="Translate with Local Rules <span>↗</span>";
  }else{
-  $("engineHint").textContent="AI Cloud: Gemini/Groq chạy server-side; API key không được gửi xuống trình duyệt.";
-  $("translateButton").textContent="Dịch bằng AI Cloud";
+  $("engineHint").textContent="AI Cloud runs Gemini/Groq server-side. Your API keys stay on the backend.";
+  $("translateButton").innerHTML="Translate with AI Cloud <span>↗</span>";
  }
  updateModelHint();
 }
