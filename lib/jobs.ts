@@ -89,7 +89,12 @@ export async function claimJob(id: string) {
   const rows = await client`
     UPDATE mc_jobs
     SET status = 'processing', attempts = attempts + 1, started_at = NOW(), error = NULL
-    WHERE id = ${id} AND status = 'pending' AND available_at <= NOW()
+    WHERE id = ${id}
+      AND (
+        (status = 'pending' AND available_at <= NOW())
+        OR
+        (status = 'processing' AND started_at IS NOT NULL AND started_at < NOW() - INTERVAL '15 minutes')
+      )
     RETURNING id, type, payload, attempts
   `;
   return rows[0] || null;
