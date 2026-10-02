@@ -20,15 +20,19 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const fileUrl = String(body?.fileUrl || "");
+    const pathname = String(body?.pathname || "");
     const fileName = String(body?.fileName || "pack.zip").replace(/[\r\n"\\/]/g, "_").slice(0, 240);
     const target = String(body?.target || "Vietnamese").trim().slice(0, 100);
 
     if (!isAllowedBlobUrl(fileUrl)) {
       return corsJson(req, { ok: false, error: "fileUrl must be a Vercel Blob HTTPS URL" }, { status: 400 });
     }
+    if (!/^uploads\/[a-f0-9-]{36}-[^\r\n]{1,240}$/i.test(pathname)) {
+      return corsJson(req, { ok: false, error: "Invalid Blob pathname" }, { status: 400 });
+    }
 
     const id = crypto.randomUUID();
-    const payload = { fileUrl, fileName, target };
+    const payload = { fileUrl, pathname, fileName, target };
     await enqueueJob(id, "translate", payload);
     await send("mc-translate", { jobId: id, type: "translate", payload }, { idempotencyKey: id });
 
