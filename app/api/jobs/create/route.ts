@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { send } from "@vercel/queue";
-import { enqueueJob } from "@/lib/jobs";
+import { enqueueJob, getJobByUploadId } from "@/lib/jobs";
 import { corsJson } from "@/lib/cors";
 import crypto from "node:crypto";
-import { isAllowedBlobUrl } from "@/lib/blob-url";
+import { getUploadSession, consumeUploadSession } from "@/lib/uploads";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -19,25 +19,73 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const fileUrl = String(body?.fileUrl || "");
-    const pathname = String(body?.pathname || "");
-    const fileName = String(body?.fileName || "pack.zip").replace(/[\r\n"\\/]/g, "_").slice(0, 240);
+    const uploadId = String(body?.uploadId || "");
     const target = String(body?.target || "Vietnamese").trim().slice(0, 100);
 
-    if (!isAllowedBlobUrl(fileUrl)) {
-      return corsJson(req, { ok: false, error: "fileUrl must be a Vercel Blob HTTPS URL" }, { status: 400 });
-    }
-    if (!/^uploads\/[a-f0-9-]{36}-[^\r\n]{1,240}$/i.test(pathname)) {
-      return corsJson(req, { ok: false, error: "Invalid Blob pathname" }, { status: 400 });
+    if (!/^[0-9a-f-]{36}$/i.test(uploadId)) {
+      return corsJson(req, { ok: false, error: "Invalid upload session" }, { status: 400 });
     }
 
+    const existing = await getJobByUploadId(uploadId);
+    if (existing) {
+      return corsJson(req, {
+        ok: true,
+        jobId: existing.id,
+        status: existing.status
+      }, { status: 200 });
+    }
+
+    const session = await getUploadSession(uploadId);
+    if (!session) {
+      return corsJson(req, { ok: false, error: "Upload session not found" }, { status: 404 });
+    }
+    if (session.usedAt) {
+      return corsJson(req, { ok: false, error: "Upload session has already been used" }, { status: 409 });
+    }
+    if (new Date(session.expiresAt).getTime() <= Date.now()) {
+      return corsJson(req, { ok: false, error: "Upload session expired" }, { status: 410 });
+    }
+
+    const consumed = await consumeUploadSession(uploadId);
     const id = crypto.randomUUID();
-    const payload = { fileUrl, pathname, fileName, target };
-    await enqueueJob(id, "translate", payload);
-    await send("mc-translate", { jobId: id, type: "translate", payload }, { idempotencyKey: id });
+    const payload = {
+      pathname: consumed.pathname,
+      fileName: consumed.fileName,
+      target
+    };
+
+    try {
+      await enqueueJob(id, "translate", payload, uploadId);
+    } catch (error: any) {
+      const duplicate = await getJobByUploadId(uploadId);
+      if (duplicate) {
+        return corsJson(req, {
+          ok: true,
+          jobId: duplicate.id,
+          status: duplicate.status
+        }, { status: 200 });
+      }
+      throw error;
+    }
+
+    try {
+      await send(
+        "mc-translate",
+        { jobId: id, type: "translate", payload },
+        { idempotencyKey: id }
+      );
+    } catch (error) {
+      throw new Error(
+        "Translation job was stored but could not be published to Queue: " +
+        (error instanceof Error ? error.message : String(error))
+      );
+    }
 
     return corsJson(req, { ok: true, jobId: id, status: "queued" }, { status: 202 });
   } catch (error: any) {
-    return corsJson(req, { ok: false, error: error?.message || "Unable to queue translation" }, { status: 500 });
+    return corsJson(req, {
+      ok: false,
+      error: error?.message || "Unable to queue translation"
+    }, { status: 500 });
   }
 }
