@@ -8,7 +8,7 @@ let sql: ReturnType<typeof postgres> | null = null;
 function db() {
   const url = process.env.POSTGRES_URL;
   if (!url) return null;
-  if (!sql) sql = postgres(url, { max: 4, idle_timeout: 20 });
+  if (!sql) sql = postgres(url, { max: 4, idle_timeout: 20, ssl: "require" });
   return sql;
 }
 
@@ -22,6 +22,7 @@ export async function ensureJobTables() {
       status TEXT NOT NULL DEFAULT 'pending',
       payload JSONB NOT NULL,
       result JSONB,
+      upload_id TEXT UNIQUE,
       attempts INTEGER NOT NULL DEFAULT 0,
       error TEXT,
       available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -30,17 +31,25 @@ export async function ensureJobTables() {
       completed_at TIMESTAMPTZ
     )
   `;
+  await client`ALTER TABLE mc_jobs ADD COLUMN IF NOT EXISTS upload_id TEXT`;
+  await client`CREATE UNIQUE INDEX IF NOT EXISTS mc_jobs_upload_id_idx ON mc_jobs(upload_id)`;
   await client`CREATE INDEX IF NOT EXISTS mc_jobs_queue_idx ON mc_jobs(status, available_at, created_at)`;
   return true;
 }
 
-export async function enqueueJob(id: string, type: JobType, payload: unknown) {
+export async function enqueueJob(
+  id: string,
+  type: JobType,
+  payload: unknown,
+  uploadId?: string
+) {
   const client = db();
   if (!client) throw new Error("POSTGRES_URL is required for queued jobs");
   await ensureJobTables();
+
   const rows = await client`
-    INSERT INTO mc_jobs (id, type, payload)
-    VALUES (${id}, ${type}, ${JSON.stringify(payload)}::jsonb)
+    INSERT INTO mc_jobs (id, type, payload, upload_id)
+    VALUES (${id}, ${type}, ${JSON.stringify(payload)}::jsonb, ${uploadId ?? null})
     ON CONFLICT (id) DO NOTHING
     RETURNING id
   `;
@@ -53,7 +62,22 @@ export async function getJob(id: string) {
   await ensureJobTables();
   const rows = await client`
     SELECT id, type, status, payload, result, attempts, error, created_at, started_at, completed_at
-    FROM mc_jobs WHERE id = ${id} LIMIT 1
+    FROM mc_jobs
+    WHERE id = ${id}
+    LIMIT 1
+  `;
+  return rows[0] || null;
+}
+
+export async function getJobByUploadId(uploadId: string) {
+  const client = db();
+  if (!client) return null;
+  await ensureJobTables();
+  const rows = await client`
+    SELECT id, type, status, attempts, error, created_at, started_at, completed_at, result
+    FROM mc_jobs
+    WHERE upload_id = ${uploadId}
+    LIMIT 1
   `;
   return rows[0] || null;
 }
@@ -100,8 +124,10 @@ export async function completeJob(id: string, result: unknown) {
   if (!client) return;
   await client`
     UPDATE mc_jobs
-    SET status = 'completed', result = ${JSON.stringify(result)}::jsonb,
-        completed_at = NOW(), error = NULL
+    SET status = 'completed',
+        result = ${JSON.stringify(result)}::jsonb,
+        completed_at = NOW(),
+        error = NULL
     WHERE id = ${id}
   `;
 }
@@ -120,7 +146,8 @@ export async function failJob(id: string, error: string, retry = true) {
   } else {
     await client`
       UPDATE mc_jobs
-      SET status = 'failed', error = ${error.slice(0, 2000)}
+      SET status = 'failed',
+          error = ${error.slice(0, 2000)}
       WHERE id = ${id} AND status = 'processing'
     `;
   }
@@ -132,6 +159,8 @@ export async function listJobs(limit = 50) {
   await ensureJobTables();
   return client`
     SELECT id, type, status, attempts, error, created_at, started_at, completed_at, result
-    FROM mc_jobs ORDER BY created_at DESC LIMIT ${Math.min(Math.max(limit,1),100)}
+    FROM mc_jobs
+    ORDER BY created_at DESC
+    LIMIT ${Math.min(Math.max(limit, 1), 100)}
   `;
 }
