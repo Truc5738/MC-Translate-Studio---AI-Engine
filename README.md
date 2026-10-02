@@ -26,6 +26,7 @@ Web app Next.js cho dịch và chuẩn hóa Minecraft Addon, Pack và Java/Paper
 - English → Vietnamese dùng `Xenova/opus-mt-en-vi`; Vietnamese → English dùng `Xenova/opus-mt-vi-en`.
 - Các cặp ngôn ngữ khác dùng multilingual `Xenova/nllb-200-distilled-600M`.
 - Browser AI tự ưu tiên WebGPU và có fallback WASM; model có thể được cache trong trình duyệt.
+- Lưu ý cấp phép: model NLLB được tham chiếu ở trên có license `CC-BY-NC-4.0` trên model card; cần kiểm tra điều kiện license trước khi dùng Browser AI NLLB cho mục đích thương mại.
 - `Local Rules` cho phép glossary tùy chỉnh ngay trên giao diện.
 - `AI Cloud` giữ Gemini/Groq server-side và tự chuyển key khi gặp lỗi/rate limit.
 - Repair Center phân tích manifest, plugin.yml, JSON/YAML/text và server log mà không thực thi code upload.
