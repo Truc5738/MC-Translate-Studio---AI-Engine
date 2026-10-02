@@ -15,5 +15,7 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - run: node --check docs/browser-ai.js
+      - run: node --check docs/app.js
       - run: npx tsc --noEmit
       - run: npm run build
