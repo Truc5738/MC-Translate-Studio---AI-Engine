@@ -1,6 +1,6 @@
 # MC Translate Studio — AI Engine
 
-Web app Next.js cho dịch và chuẩn hóa Minecraft Addon, Pack và Java/Paper plugin bằng Local Engine hoặc Gemini + Groq.
+Web app Next.js cho dịch và chuẩn hóa Minecraft Addon, Pack và Java/Paper plugin bằng Browser AI, Local Rules hoặc Gemini + Groq.
 
 ## Kiến trúc production
 
@@ -8,11 +8,12 @@ Web app Next.js cho dịch và chuẩn hóa Minecraft Addon, Pack và Java/Paper
   - https://truc5738.github.io/MC-Translate-Studio---AI-Engine/
 - **Backend:** Vercel + Next.js App Router
   - https://mc-translate-studio-ai-engine-git-main-mynodejs1.vercel.app
-- **Upload:** Vercel Blob với signed PUT URL, file đi thẳng từ trình duyệt lên Blob.
-- **Queue:** Vercel Queues topic `mc-translate`.
+- **Upload cloud:** Vercel Blob với signed PUT URL.
+- **Queue cloud:** Vercel Queues topic `mc-translate`.
 - **Job state:** PostgreSQL.
-- **Local Engine:** dịch không cần AI API bằng bộ từ điển và glossary tùy chỉnh.
-- **AI:** pool tối đa **20 API slots tổng cộng**, mỗi slot là Gemini hoặc Groq.
+- **Browser AI:** Transformers.js + ONNX chạy trong trình duyệt; không cần API key, không upload file lên backend.
+- **Local Rules:** bộ từ điển + glossary, không cần model AI.
+- **AI Cloud:** pool tối đa **20 API slots tổng cộng**, mỗi slot là Gemini hoặc Groq.
 - **Admin:** password + HttpOnly session cookie; API keys được mã hóa AES-256-GCM khi lưu PostgreSQL.
 
 ## Tính năng
@@ -21,11 +22,12 @@ Web app Next.js cho dịch và chuẩn hóa Minecraft Addon, Pack và Java/Paper
 - Duyệt ZIP/JAR và dịch các file text an toàn.
 - Bảo vệ identifier, namespace, placeholder, URL, command, selector, UUID và Minecraft formatting code.
 - Xuất lại đúng loại file đầu vào.
-- Direct browser upload lên Blob, không đẩy file lớn qua Next.js request body.
-- Queue xử lý nền và polling Job ID.
-- Chọn engine `Local` để không dùng AI API; glossary có thể tùy chỉnh ngay trên giao diện.
-- AI pool tự chuyển key khi gặp lỗi/rate limit và có cooldown.
-- Admin Panel quản lý 20 API slots, xem pool status, webhook events và translation jobs.
+- **Browser AI:** dịch tại thiết bị và tải file kết quả trực tiếp, không tạo Job/Blob/Queue.
+- English → Vietnamese dùng model dịch `Xenova/opus-mt-en-vi`.
+- Các cặp ngôn ngữ khác dùng multilingual `Xenova/nllb-200-distilled-600M`.
+- Browser AI tự ưu tiên WebGPU và có fallback WASM; model có thể được cache trong trình duyệt.
+- `Local Rules` cho phép glossary tùy chỉnh ngay trên giao diện.
+- `AI Cloud` giữ Gemini/Groq server-side và tự chuyển key khi gặp lỗi/rate limit.
 - Repair Center phân tích manifest, plugin.yml, JSON/YAML/text và server log mà không thực thi code upload.
 - GitHub webhook và generic webhook hỗ trợ đưa job dịch vào Queue.
 - GitHub Pages frontend không yêu cầu Node.js.
@@ -46,25 +48,30 @@ MAX_FILE_MB=50
 MAX_CONCURRENT_JOBS=4
 AI_REQUEST_TIMEOUT_MS=60000
 
-# Webhook security
 WEBHOOK_SECRET=...
 GITHUB_WEBHOOK_SECRET=...
 
-# Optional: CORS có fallback về GitHub Pages chính thức
 STATIC_SITE_ORIGIN=https://truc5738.github.io
 ```
 
-Khi kết nối Vercel Blob, SDK có thể dùng OIDC hoặc `BLOB_READ_WRITE_TOKEN` tùy cấu hình Blob Store.
+## Browser AI không cần API
 
-## AI API pool
+Browser AI chạy model ONNX trực tiếp trong trình duyệt. File được đọc, dịch và đóng gói ngay trên thiết bị; không gửi nội dung pack tới backend của dự án. Lần chạy đầu cần tải model từ kho model, nên tốc độ và dung lượng sử dụng phụ thuộc thiết bị và trình duyệt.
 
-Admin Panel hỗ trợ tối đa **20 slot tổng cộng**, ví dụ:
+```text
+File trên điện thoại / PC
+        |
+        v
+GitHub Pages
+        |
+        +--> Browser AI + ONNX --> ZIP kết quả
+        |
+        +--> AI Cloud --> Vercel Blob + Queue --> Gemini/Groq
+```
 
-- Slot 1: Gemini
-- Slot 2: Groq
-- Slot 3: Gemini
-- ...
-- Slot 20: Gemini hoặc Groq
+## AI Cloud API pool
+
+Admin Panel hỗ trợ tối đa **20 slot tổng cộng**, mỗi slot là Gemini hoặc Groq.
 
 Người dùng cuối **không nhập API key**. Key chỉ được xử lý ở server.
 
@@ -73,11 +80,6 @@ Người dùng cuối **không nhập API key**. Key chỉ được xử lý ở
 ```bash
 npm install
 npm run dev
-```
-
-Build production:
-
-```bash
 npm run build
 npm start
 ```
@@ -86,45 +88,24 @@ npm start
 
 - Không commit API key vào GitHub.
 - Không đặt secret trong JavaScript client.
-- Dùng HTTPS cho production.
-- Upload trực tiếp dùng signed URL giới hạn pathname, operation, content type và kích thước.
+- Upload cloud dùng signed URL giới hạn pathname, operation, content type và kích thước.
+- Browser AI không gửi pack lên backend trong lúc dịch.
 - Queue handler không thực thi JavaScript/Java/shell/class từ file upload.
 - Không dùng `eval` để repair code.
 
-## Luồng dịch production
+## Luồng dịch
 
 ```text
-GitHub Pages
-    |
-    | POST /api/blob/presign
-    v
-Vercel Backend
-    |
-    | signed PUT URL
-    v
-Vercel Blob
-    |
-    | POST /api/jobs/create
-    v
-Vercel Queue: mc-translate
-    |
-    v
-Queue Consumer
-    |
-    +--> PostgreSQL: processing/completed/failed
-    |
-    +--> Local Engine (không cần AI API)
-    +--> Gemini/Groq AI pool
-    |
-    v
-Vercel Blob: translated output
-    |
-    v
-GitHub Pages nhận Job ID và tải file kết quả
+Browser AI:
+GitHub Pages -> Transformers.js/ONNX -> xử lý local -> tải ZIP
+
+AI Cloud:
+GitHub Pages -> Vercel -> Blob -> Queue -> Worker -> Gemini/Groq -> Blob -> tải ZIP
 ```
 
 ## Ghi chú
 
-- `POSTGRES_URL` là bắt buộc cho translation queue hiện tại vì trạng thái Job được lưu bền vững trong PostgreSQL.
-- Nếu Vercel project chưa kết nối Blob Store hoặc PostgreSQL, hãy kết nối hai storage này trước khi test translation.
+- `POSTGRES_URL` là bắt buộc cho translation queue hiện tại.
+- Vercel project cần kết nối Blob Store và PostgreSQL để test AI Cloud/Local Rules.
+- Browser AI không phụ thuộc Vercel để dịch; chỉ cần trình duyệt hỗ trợ JavaScript và đủ tài nguyên để chạy model.
 - Credit deduction thực tế của nvnmc.cloud chưa được hardcode; cần endpoint/API contract chính thức của hệ thống credit trước khi bật charge thật.
