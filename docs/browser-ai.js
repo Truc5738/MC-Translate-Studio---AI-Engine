@@ -213,12 +213,34 @@ async function translateNatural(text, source, target, pipe) {
   if (shouldKeepString(original)) return original;
 
   const glossary = window.__MCTS_BROWSER_GLOSSARY || {};
-  const glossaried = glossaryReplace(original, glossary);
-  const masked = maskProtected(glossaried);
-  const pieces = masked.text.split(/(MCTSLOCK\d+TOKEN)/g);
+  const protectedText = maskProtected(original);
+  let working = protectedText.text;
+  const glossaryTargets = [];
+
+  const entries = Object.entries(glossary)
+    .filter(([from, to]) => String(from).trim() && String(to).trim())
+    .sort((a, b) => String(b[0]).length - String(a[0]).length);
+
+  for (const [from, to] of entries) {
+    const id = glossaryTargets.push(String(to)) - 1;
+    working = working.replace(
+      new RegExp(escapeRegex(String(from)), "gi"),
+      "MCTSGLOSS" + id + "TOKEN"
+    );
+  }
+
+  const pieces = working.split(/(MCTSLOCK\d+TOKEN|MCTSGLOSS\d+TOKEN)/g);
   let output = "";
 
   for (const piece of pieces) {
+    if (!piece) continue;
+
+    const glossaryMatch = piece.match(/^MCTSGLOSS(\d+)TOKEN$/);
+    if (glossaryMatch) {
+      output += glossaryTargets[Number(glossaryMatch[1])] ?? piece;
+      continue;
+    }
+
     if (/^MCTSLOCK\d+TOKEN$/.test(piece) || !piece.trim()) {
       output += piece;
       continue;
@@ -243,7 +265,7 @@ async function translateNatural(text, source, target, pipe) {
     }
   }
 
-  return restoreProtected(output, masked.tokens);
+  return restoreProtected(output, protectedText.tokens);
 }
 
 function skipJsonKey(key) {
@@ -359,8 +381,8 @@ function replaceQuotedCode(text, map) {
 }
 
 function collectGeneric(text, out) {
-  for (const chunk of splitLongText(text, 700)) {
-    if (chunk.trim()) out.push(chunk);
+  for (const line of String(text).split(/\r?\n/)) {
+    if (line.trim()) out.push(line);
   }
 }
 
@@ -428,7 +450,7 @@ async function translateFile(entry, source, target, pipe, glossary, onTextProgre
   }
   if (mode === "markup") return replaceMarkup(data, map);
   if (mode === "code") return replaceQuotedCode(data, map);
-  return String(data).split(/(\n)/).map(part => map.get(part) ?? part).join("");
+  return String(data).split(/(\r?\n)/).map(part => /^\r?\n$/.test(part) ? part : (map.get(part) ?? part)).join("");
 }
 
 async function translateZipInBrowser(file, options = {}) {
