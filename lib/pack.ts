@@ -3,7 +3,7 @@ import JSZip from "jszip";
 const TEXT_EXT = /\.(json|jsonc|lang|properties|yml|yaml|txt|mcfunction|ini|cfg|toml|xml|js|ts|java|md)$/i;
 const SKIP = /(^|\/)(pack_icon\.png|manifest\.json\.bak|.*\.png|.*\.jpg|.*\.jpeg|.*\.webp|.*\.ogg|.*\.mp3|.*\.wav|.*\.mp4|.*\.mcstructure|.*\.bin)$/i;
 
-export async function translateZip(input:Buffer,target:string,translate:(s:string,p:string)=>Promise<string>) {
+export async function translateZip(input:Buffer,target:string,translate:(s:string,target:string,path:string)=>Promise<string>) {
   const zip=await JSZip.loadAsync(input);
   const out=new JSZip();
   const entries=Object.keys(zip.files);
