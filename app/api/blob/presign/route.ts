@@ -22,11 +22,17 @@ export async function POST(req: NextRequest) {
     const size = Number(body?.size || 0);
     const contentType = String(body?.contentType || "application/zip").slice(0, 120);
     const max = Number(process.env.MAX_FILE_MB || 50) * 1024 * 1024;
-    if (!ALLOWED.test(fileName)) return corsJson(req, { ok: false, error: "Unsupported file type" }, { status: 400 });
-    if (!Number.isFinite(size) || size <= 0 || size > max) return corsJson(req, { ok: false, error: "File exceeds the configured size limit" }, { status: 413 });
+
+    if (!ALLOWED.test(fileName)) {
+      return corsJson(req, { ok: false, error: "Unsupported file type" }, { status: 400 });
+    }
+    if (!Number.isFinite(size) || size <= 0 || size > max) {
+      return corsJson(req, { ok: false, error: "File exceeds the configured size limit" }, { status: 413 });
+    }
 
     const pathname = "uploads/" + crypto.randomUUID() + "-" + fileName;
     const expiresAt = Date.now() + 15 * 60 * 1000;
+
     const token = await issueSignedToken({
       pathname,
       operations: ["put"],
@@ -34,17 +40,28 @@ export async function POST(req: NextRequest) {
       allowedContentTypes: [contentType],
       maximumSizeInBytes: max
     });
+
     const { presignedUrl } = await presignUrl(token, {
       pathname,
       operation: "put",
       validUntil: expiresAt,
       allowedContentTypes: [contentType],
       maximumSizeInBytes: max,
-      access: "public",
+      access: "private",
       allowOverwrite: false
     });
-    return corsJson(req, { ok: true, uploadUrl: presignedUrl, fileUrl: presignedUrl.split("?")[0], pathname, expiresAt });
+
+    return corsJson(req, {
+      ok: true,
+      uploadUrl: presignedUrl,
+      fileUrl: presignedUrl.split("?")[0],
+      pathname,
+      expiresAt
+    });
   } catch (error: any) {
-    return corsJson(req, { ok: false, error: error?.message || "Unable to create upload URL" }, { status: 500 });
+    return corsJson(req, {
+      ok: false,
+      error: error?.message || "Unable to create upload URL"
+    }, { status: 500 });
   }
 }
