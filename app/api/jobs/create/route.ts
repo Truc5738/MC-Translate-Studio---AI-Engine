@@ -21,6 +21,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const uploadId = String(body?.uploadId || "");
     const target = String(body?.target || "Vietnamese").trim().slice(0, 100);
+    const engine = body?.engine === "local" ? "local" : "ai";
+    const rawGlossary = body?.glossary && typeof body.glossary === "object" ? body.glossary : {};
+    const glossary = Object.fromEntries(
+      Object.entries(rawGlossary).slice(0, 500).map(([from, to]) => [
+        String(from).slice(0, 200),
+        String(to).slice(0, 500)
+      ])
+    );
 
     if (!/^[0-9a-f-]{36}$/i.test(uploadId)) {
       return corsJson(req, { ok: false, error: "Invalid upload session" }, { status: 400 });
@@ -51,7 +59,9 @@ export async function POST(req: NextRequest) {
     const payload = {
       pathname: consumed.pathname,
       fileName: consumed.fileName,
-      target
+      target,
+      engine,
+      glossary
     };
 
     try {
