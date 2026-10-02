@@ -22,7 +22,7 @@ $("translate").addEventListener("click",async()=>{
   const put=await fetch(pd.uploadUrl,{method:"PUT",body:file,headers:{"Content-Type":file.type||"application/zip"}});
   if(!put.ok) throw new Error("Upload Blob thất bại: HTTP "+put.status);
   setStatus("3/4 Đã tải file. Đang xếp job vào Queue...");
-  const queued=await fetch(base+"/api/jobs/create",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fileUrl:pd.fileUrl,fileName:file.name,target:$("target").value})});
+  const queued=await fetch(base+"/api/jobs/create",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({fileUrl:pd.fileUrl,pathname:pd.pathname,fileName:file.name,target:$("target").value})});
   const qd=await queued.json(); if(!queued.ok) throw new Error(qd.error||"Không tạo được job");
   const id=qd.jobId;
   for(let i=0;i<180;i++){
