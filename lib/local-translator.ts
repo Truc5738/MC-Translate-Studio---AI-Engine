@@ -1,90 +1,21 @@
 const DEFAULT_EN_VI: Record<string, string> = {
-  "loading": "đang tải",
-  "settings": "cài đặt",
-  "options": "tùy chọn",
-  "language": "ngôn ngữ",
-  "languages": "ngôn ngữ",
-  "play": "phát",
-  "pause": "tạm dừng",
-  "resume": "tiếp tục",
-  "stop": "dừng",
-  "start": "bắt đầu",
-  "close": "đóng",
-  "cancel": "hủy",
-  "confirm": "xác nhận",
-  "save": "lưu",
-  "delete": "xóa",
-  "remove": "xóa",
-  "back": "quay lại",
-  "next": "tiếp theo",
-  "previous": "trước",
-  "open": "mở",
-  "edit": "chỉnh sửa",
-  "search": "tìm kiếm",
-  "download": "tải xuống",
-  "upload": "tải lên",
-  "enabled": "đã bật",
-  "disabled": "đã tắt",
-  "enable": "bật",
-  "disable": "tắt",
-  "online": "trực tuyến",
-  "offline": "ngoại tuyến",
-  "welcome": "chào mừng",
-  "hello": "xin chào",
-  "thank you": "cảm ơn",
-  "please": "vui lòng",
-  "try again": "thử lại",
-  "are you sure": "bạn có chắc không",
-  "version": "phiên bản",
-  "update": "cập nhật",
-  "connect": "kết nối",
-  "disconnect": "ngắt kết nối",
-  "connected": "đã kết nối",
-  "disconnected": "đã ngắt kết nối",
-  "server": "máy chủ",
-  "player": "người chơi",
-  "players": "người chơi",
-  "world": "thế giới",
-  "item": "vật phẩm",
-  "items": "vật phẩm",
-  "block": "khối",
-  "blocks": "khối",
-  "entity": "thực thể",
-  "entities": "thực thể",
-  "inventory": "túi đồ",
-  "crafting": "chế tạo",
-  "recipe": "công thức",
-  "recipes": "công thức",
-  "health": "máu",
-  "damage": "sát thương",
-  "armor": "giáp",
-  "level": "cấp",
-  "experience": "kinh nghiệm",
-  "command": "lệnh",
-  "commands": "các lệnh",
-  "permission": "quyền",
-  "permissions": "quyền",
-  "error": "lỗi",
-  "warning": "cảnh báo",
-  "success": "thành công",
-  "failed": "thất bại",
-  "not found": "không tìm thấy",
-  "unknown": "không xác định",
-  "time": "thời gian",
-  "date": "ngày",
-  "name": "tên",
-  "description": "mô tả",
-  "title": "tiêu đề",
-  "message": "tin nhắn",
-  "join": "tham gia",
-  "leave": "rời đi",
-  "spawn": "điểm hồi sinh",
-  "teleport": "dịch chuyển",
-  "difficulty": "độ khó",
-  "easy": "dễ",
-  "normal": "bình thường",
-  "hard": "khó",
-  "peaceful": "yên bình"
+  "loading":"đang tải","settings":"cài đặt","options":"tùy chọn","language":"ngôn ngữ","languages":"ngôn ngữ",
+  "play":"phát","pause":"tạm dừng","resume":"tiếp tục","stop":"dừng","start":"bắt đầu","close":"đóng",
+  "cancel":"hủy","confirm":"xác nhận","save":"lưu","delete":"xóa","remove":"xóa","back":"quay lại",
+  "next":"tiếp theo","previous":"trước","open":"mở","edit":"chỉnh sửa","search":"tìm kiếm","download":"tải xuống",
+  "upload":"tải lên","enabled":"đã bật","disabled":"đã tắt","enable":"bật","disable":"tắt","online":"trực tuyến",
+  "offline":"ngoại tuyến","welcome":"chào mừng","hello":"xin chào","thank you":"cảm ơn","please":"vui lòng",
+  "try again":"thử lại","are you sure":"bạn có chắc không","version":"phiên bản","update":"cập nhật",
+  "connect":"kết nối","disconnect":"ngắt kết nối","connected":"đã kết nối","disconnected":"đã ngắt kết nối",
+  "server":"máy chủ","player":"người chơi","players":"người chơi","world":"thế giới","item":"vật phẩm",
+  "items":"vật phẩm","block":"khối","blocks":"khối","entity":"thực thể","entities":"thực thể",
+  "inventory":"túi đồ","crafting":"chế tạo","recipe":"công thức","recipes":"công thức","health":"máu",
+  "damage":"sát thương","armor":"giáp","level":"cấp","experience":"kinh nghiệm","command":"lệnh",
+  "commands":"các lệnh","permission":"quyền","permissions":"quyền","error":"lỗi","warning":"cảnh báo",
+  "success":"thành công","failed":"thất bại","not found":"không tìm thấy","unknown":"không xác định",
+  "time":"thời gian","date":"ngày","name":"tên","description":"mô tả","title":"tiêu đề","message":"tin nhắn",
+  "join":"tham gia","leave":"rời đi","spawn":"điểm hồi sinh","teleport":"dịch chuyển","difficulty":"độ khó",
+  "easy":"dễ","normal":"bình thường","hard":"khó","peaceful":"yên bình"
 };
 
 const PROTECTED = [
@@ -115,82 +46,80 @@ function escapeRegex(value: string) {
   return value.replace(/[.*+?^()|[\\]\\]/g, "\\$&");
 }
 
-function normalizeGlossary(glossary?: Record<string, string>) {
-  const merged: Record<string, string> = { ...DEFAULT_EN_VI };
-  for (const [from, to] of Object.entries(glossary || {})) {
-    if (!from.trim() || !to.trim()) continue;
-    merged[from] = to;
+function glossaryEntries(target: string, custom?: Record<string, string>) {
+  const merged: Record<string, string> = /^(vietnamese|vi|vi-vn|tiếng việt)$/i.test(target.trim())
+    ? { ...DEFAULT_EN_VI }
+    : {};
+  for (const [from, to] of Object.entries(custom || {})) {
+    if (from.trim() && to.trim() && from !== to) merged[from] = to;
   }
-  return Object.entries(merged)
-    .filter(([from, to]) => from.trim() && to.trim() && from !== to)
-    .sort((a, b) => b[0].length - a[0].length);
+  return Object.entries(merged).sort((a, b) => b[0].length - a[0].length);
 }
 
-function replaceGlossary(text: string, glossary?: Record<string, string>) {
+function replaceGlossary(text: string, target: string, custom?: Record<string, string>) {
   const masked = maskProtected(text);
   let result = masked.out;
-  for (const [from, to] of normalizeGlossary(glossary)) {
+  for (const [from, to] of glossaryEntries(target, custom)) {
     result = result.replace(new RegExp(escapeRegex(from), "gi"), to);
   }
   return unmask(result, masked.values);
 }
 
-function shouldSkipJsonKey(key: string) {
+function skipJsonKey(key: string) {
   return /^(id|ids|key|keys|name|namespace|identifier|icon|texture|path|url|uuid|command|commands|type|format|version|module|modules|dependencies|description_id)$/i.test(key)
     || (/^[a-z0-9_.:-]+$/.test(key) && !/\\s/.test(key));
 }
 
-function translateJsonValue(value: unknown, glossary?: Record<string, string>, parentKey = ""): unknown {
-  if (typeof value === "string") {
-    if (shouldSkipJsonKey(parentKey)) return value;
-    return replaceGlossary(value, glossary);
-  }
-  if (Array.isArray(value)) return value.map(v => translateJsonValue(v, glossary, parentKey));
+function translateJson(value: unknown, target: string, custom?: Record<string, string>, key = ""): unknown {
+  if (typeof value === "string") return skipJsonKey(key) ? value : replaceGlossary(value, target, custom);
+  if (Array.isArray(value)) return value.map(item => translateJson(item, target, custom, key));
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};
-    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-      out[key] = translateJsonValue(child, glossary, key);
+    for (const [childKey, childValue] of Object.entries(value as Record<string, unknown>)) {
+      out[childKey] = translateJson(childValue, target, custom, childKey);
     }
     return out;
   }
   return value;
 }
 
-function translateProperties(text: string, glossary?: Record<string, string>) {
+function translateProperties(text: string, target: string, custom?: Record<string, string>) {
   return text.split(/(\\r?\\n)/).map(line => {
     if (/^\\s*[#!]/.test(line) || !line.trim()) return line;
     const match = line.match(/^(\\s*[^:=#]+?\\s*)([:=])(\\s*)(.*)$/);
-    if (!match) return replaceGlossary(line, glossary);
-    return match[1] + match[2] + match[3] + replaceGlossary(match[4], glossary);
+    return match
+      ? match[1] + match[2] + match[3] + replaceGlossary(match[4], target, custom)
+      : replaceGlossary(line, target, custom);
   }).join("");
 }
 
-function translateYaml(text: string, glossary?: Record<string, string>) {
+function translateYaml(text: string, target: string, custom?: Record<string, string>) {
   return text.split(/(\\r?\\n)/).map(line => {
     if (/^\\s*#/.test(line) || !line.trim()) return line;
     const match = line.match(/^(\\s*[^:#]+?:\\s*)(['"]?)(.*?)(\\2)\\s*$/);
     return match
-      ? match[1] + match[2] + replaceGlossary(match[3], glossary) + match[4]
+      ? match[1] + match[2] + replaceGlossary(match[3], target, custom) + match[4]
       : line;
   }).join("");
 }
 
-function translateMcfunction(text: string, glossary?: Record<string, string>) {
+function translateMcfunction(text: string, target: string, custom?: Record<string, string>) {
   return text.split(/(\\r?\\n)/).map(line => {
     const index = line.indexOf("#");
-    if (index < 0) return line;
-    return line.slice(0, index) + replaceGlossary(line.slice(index), glossary);
+    return index < 0
+      ? line
+      : line.slice(0, index) + replaceGlossary(line.slice(index), target, custom);
   }).join("");
 }
 
-function translateMarkup(text: string, glossary?: Record<string, string>) {
-  return text.replace(/>([^<>]+)</g, (_, inner) => ">" + replaceGlossary(inner, glossary) + "<");
+function translateMarkup(text: string, target: string, custom?: Record<string, string>) {
+  return text.replace(/>([^<>]+)</g, (_, inner) => ">" + replaceGlossary(inner, target, custom) + "<");
 }
 
-function translateQuotedCode(text: string, glossary?: Record<string, string>) {
-  return text.replace(/(["'`])((?:\\\\.|(?!\\1).)*)\\1/g, (whole, quote, inner) => {
+function translateQuotedCode(text: string, target: string, custom?: Record<string, string>) {
+  return text.replace(/(["'\`])((?:\\\\.|(?!\\1).)*)\\1/g, (whole, quote, inner) => {
     if (/\\b(?:https?|minecraft)[:/]/i.test(inner)) return whole;
-    return quote + replaceGlossary(inner, glossary) + quote;
+    return quote + replaceGlossary(inner, target, custom) + quote;
   });
 }
 
@@ -201,37 +130,33 @@ export function translateLocal(
   customGlossary?: Record<string, string>
 ) {
   const ext = filePath.toLowerCase().split(".").pop() || "";
-  void target;
 
   try {
     if (ext === "json") {
       const parsed = JSON.parse(source);
-      return JSON.stringify(translateJsonValue(parsed, customGlossary), null, 2);
-    }
-    if (ext === "jsonc") {
-      return replaceGlossary(source, customGlossary);
+      return JSON.stringify(translateJson(parsed, target, customGlossary), null, 2);
     }
   } catch {
-    return replaceGlossary(source, customGlossary);
+    return replaceGlossary(source, target, customGlossary);
   }
 
   if (ext === "properties" || ext === "lang" || ext === "ini" || ext === "cfg") {
-    return translateProperties(source, customGlossary);
+    return translateProperties(source, target, customGlossary);
   }
   if (ext === "yml" || ext === "yaml") {
-    return translateYaml(source, customGlossary);
+    return translateYaml(source, target, customGlossary);
   }
   if (ext === "mcfunction") {
-    return translateMcfunction(source, customGlossary);
+    return translateMcfunction(source, target, customGlossary);
   }
   if (ext === "xml" || ext === "html" || ext === "htm") {
-    return translateMarkup(source, customGlossary);
+    return translateMarkup(source, target, customGlossary);
   }
   if (ext === "js" || ext === "ts" || ext === "java") {
-    return translateQuotedCode(source, customGlossary);
+    return translateQuotedCode(source, target, customGlossary);
   }
 
-  return replaceGlossary(source, customGlossary);
+  return replaceGlossary(source, target, customGlossary);
 }
 
 export function parseGlossaryText(value: string): Record<string, string> {
