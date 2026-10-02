@@ -58,7 +58,7 @@ const queueHandler = handleCallback(async (message: any, metadata: any) => {
     const base = name.replace(/\\.(mcaddon|mcpack|zip|jar)$/i, "");
     const pathname = `translations/${crypto.randomUUID()}-translated-${base}${ext}`;
 
-    await put(pathname, new Uint8Array(result.buffer), {
+    await put(pathname, Buffer.from(result.buffer), {
       access: "private",
       allowOverwrite: false
     });
