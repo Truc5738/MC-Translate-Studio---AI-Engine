@@ -18,5 +18,5 @@ jobs:
       - run: node --check docs/browser-ai.js
       - run: node --check docs/app.js
       - run: npx tsc --noEmit
-      - run: node --experimental-strip-types --test tests/translation.test.mjs
+      - run: node --experimental-default-type=module --experimental-strip-types --test tests/translation.test.mjs
       - run: npm run build
