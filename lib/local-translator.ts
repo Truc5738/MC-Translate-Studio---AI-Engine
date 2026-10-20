@@ -136,10 +136,10 @@ function replaceGlossary(text: string, target: string, custom?: Record<string, s
 }
 
 function skipJsonKey(key: string) {
-  return /^(id|ids|key|keys|name|namespace|identifier|icon|texture|path|url|uuid|command|commands|type|format|version|module|modules|dependencies|description_id)$/i.test(key)
-    || (/^[a-z0-9_.:-]+$/.test(key) && !/\s/.test(key));
+  // Keep schema identifiers intact, but allow human-facing JSON values such as
+  // name/title/description to pass through the glossary translator.
+  return /^(id|ids|key|keys|namespace|identifier|icon|texture|path|url|uuid|command|commands|type|format|version|module|modules|dependencies|description_id|resource|resource_id)$/i.test(key);
 }
-
 function translateJson(value: unknown, target: string, custom?: Record<string, string>, key = ""): unknown {
   if (typeof value === "string") {
     return skipJsonKey(key) ? value : replaceGlossary(value, target, custom);
