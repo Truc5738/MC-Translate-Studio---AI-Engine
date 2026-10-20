@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 
-const TEXT_EXT = /\.(json|jsonc|lang|properties|yml|yaml|txt|mcfunction|ini|cfg|toml|xml|js|ts|java|md)$/i;
+// JSONC and TOML need syntax-aware parsers; do not pass them through plain-text translation.
+const TEXT_EXT = /\.(json|lang|properties|yml|yaml|txt|mcfunction|ini|cfg|xml|js|ts|java|md)$/i;
 const SKIP = /(^|\/)(pack_icon\.png|manifest\.json\.bak|.*\.png|.*\.jpg|.*\.jpeg|.*\.webp|.*\.ogg|.*\.mp3|.*\.wav|.*\.mp4|.*\.mcstructure|.*\.bin)$/i;
 const NESTED_ARCHIVE = /\.(mcaddon|mcpack|zip)$/i;
 const MAX_NESTED_ARCHIVE_BYTES = 50 * 1024 * 1024;
