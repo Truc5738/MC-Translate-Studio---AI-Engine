@@ -124,17 +124,20 @@ function downloadBlob(blob,fileName){
 function browserProgress(info){
  if(info.phase==="model"){
   const p=typeof info.progress==="number" ? " "+Math.round(info.progress)+"%" : "";
-  setStatus("Đang tải/khởi động Browser AI"+p+" | "+(info.label||"model"));
+  const engineLabel=$("engine").value==="local"?"Local Rules":"Browser AI";
+  setStatus("Đang chuẩn bị "+engineLabel+p+" | "+(info.label||"model"));
   return;
  }
  if(info.phase==="text"){
   const p=info.total?Math.round((info.current/info.total)*100):0;
-  setStatus("Browser AI đang dịch: "+p+"% | "+(info.path||"file"));
+  const engineLabel=$("engine").value==="local"?"Local Rules":"Browser AI";
+  setStatus(engineLabel+" đang xử lý nội dung: "+p+"% | "+(info.path||"file"));
   return;
  }
  if(info.phase==="files"){
   const p=info.total?Math.round((info.current/info.total)*100):0;
-  setStatus("Browser AI đang xử lý pack: "+p+"% | "+(info.label||""));
+  const engineLabel=$("engine").value==="local"?"Local Rules":"Browser AI";
+  setStatus(engineLabel+" đang xử lý pack: "+p+"% | "+(info.label||""));
   return;
  }
  if(info.phase==="zip") setStatus("Đang đóng gói file dịch...");
