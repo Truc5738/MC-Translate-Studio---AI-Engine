@@ -78,3 +78,44 @@ body{
  .feature h3{font-size:18px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+
+/* Reference-aligned glass layer inspired by Bedrock VoiceChat SkyWay */
+:root{
+ --glass-border:rgba(226,240,255,.24);
+ --glass-surface:rgba(20,28,39,.46);
+ --glass-muted:#bac7d9;
+}
+body{
+ background:
+  radial-gradient(ellipse at 14% 8%,rgba(139,167,197,.27),transparent 32%),
+  radial-gradient(ellipse at 88% 22%,rgba(168,161,223,.22),transparent 30%),
+  radial-gradient(ellipse at 55% 100%,rgba(111,198,208,.17),transparent 38%),
+  linear-gradient(145deg,#080b12,#151a25 52%,#090d14);
+ background-attachment:fixed;
+}
+.nav,.panel{
+ background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.045) 52%,rgba(178,205,255,.075));
+ border:1px solid rgba(235,245,255,.24);
+ -webkit-backdrop-filter:blur(30px) saturate(165%);
+ backdrop-filter:blur(30px) saturate(165%);
+ box-shadow:0 22px 70px rgba(0,0,0,.23),inset 0 1px 0 rgba(255,255,255,.18);
+}
+.nav{background:rgba(255,255,255,.075);border-color:rgba(255,255,255,.2)}
+.panel:after{
+ content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+ background:linear-gradient(120deg,rgba(255,255,255,.075),transparent 27%,transparent 70%,rgba(188,201,255,.055));
+}
+.feature{background:linear-gradient(135deg,rgba(255,255,255,.15),rgba(255,255,255,.055) 52%,rgba(178,205,255,.08))}
+.status,.drop,.field select,.field input{
+ background:rgba(4,9,17,.3);
+ border-color:rgba(230,241,255,.2);
+ -webkit-backdrop-filter:blur(20px) saturate(140%);
+ backdrop-filter:blur(20px) saturate(140%);
+}
+.drop{background:linear-gradient(140deg,rgba(160,198,240,.17),rgba(255,255,255,.055) 48%,rgba(190,167,255,.13));border-color:rgba(202,230,255,.42)}
+.drop:before{content:"";position:absolute;inset:-40% -15% auto;height:220px;background:radial-gradient(ellipse,rgba(172,211,255,.2),transparent 68%);pointer-events:none}
+.drop label{background:linear-gradient(135deg,#d2f4ff,#c7c2ff);box-shadow:inset 0 1px rgba(255,255,255,.85),0 10px 28px rgba(130,194,255,.18)}
+.status{color:#c3d0e2}
+@media(max-width:800px){.nav,.panel{border-radius:23px}.panel:after{opacity:.8}}
+@media(prefers-reduced-transparency:reduce){.nav,.panel,.status,.drop,.field select,.field input{backdrop-filter:none;-webkit-backdrop-filter:none;background:#111b2b}}
