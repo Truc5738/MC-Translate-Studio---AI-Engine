@@ -160,6 +160,94 @@ function escapeRegex(value) {
   return String(value).replace(/[.*+?^()|[\]\\]/g, "\\$&");
 }
 
+const MCTS_DEFAULT_EN_VI = {
+  "loading": "đang tải",
+  "settings": "cài đặt",
+  "options": "tùy chọn",
+  "language": "ngôn ngữ",
+  "play": "phát",
+  "pause": "tạm dừng",
+  "resume": "tiếp tục",
+  "stop": "dừng",
+  "start": "bắt đầu",
+  "close": "đóng",
+  "cancel": "hủy",
+  "confirm": "xác nhận",
+  "save": "lưu",
+  "delete": "xóa",
+  "remove": "xóa",
+  "back": "quay lại",
+  "next": "tiếp theo",
+  "previous": "trước",
+  "open": "mở",
+  "edit": "chỉnh sửa",
+  "search": "tìm kiếm",
+  "download": "tải xuống",
+  "upload": "tải lên",
+  "enabled": "đã bật",
+  "disabled": "đã tắt",
+  "enable": "bật",
+  "disable": "tắt",
+  "online": "trực tuyến",
+  "offline": "ngoại tuyến",
+  "welcome": "chào mừng",
+  "hello": "xin chào",
+  "thank you": "cảm ơn",
+  "please": "vui lòng",
+  "try again": "thử lại",
+  "are you sure": "bạn có chắc không",
+  "version": "phiên bản",
+  "update": "cập nhật",
+  "connect": "kết nối",
+  "disconnect": "ngắt kết nối",
+  "connected": "đã kết nối",
+  "disconnected": "đã ngắt kết nối",
+  "server": "máy chủ",
+  "player": "người chơi",
+  "players": "người chơi",
+  "world": "thế giới",
+  "item": "vật phẩm",
+  "items": "vật phẩm",
+  "block": "khối",
+  "blocks": "khối",
+  "entity": "thực thể",
+  "entities": "thực thể",
+  "inventory": "túi đồ",
+  "crafting": "chế tạo",
+  "recipe": "công thức",
+  "recipes": "công thức",
+  "health": "máu",
+  "damage": "sát thương",
+  "armor": "giáp",
+  "level": "cấp",
+  "experience": "kinh nghiệm",
+  "command": "lệnh",
+  "commands": "các lệnh",
+  "permission": "quyền",
+  "permissions": "quyền",
+  "error": "lỗi",
+  "warning": "cảnh báo",
+  "success": "thành công",
+  "failed": "thất bại",
+  "not found": "không tìm thấy",
+  "unknown": "không xác định",
+  "time": "thời gian",
+  "date": "ngày",
+  "name": "tên",
+  "description": "mô tả",
+  "title": "tiêu đề",
+  "message": "tin nhắn",
+  "join": "tham gia",
+  "leave": "rời đi",
+  "spawn": "điểm hồi sinh",
+  "teleport": "dịch chuyển",
+  "difficulty": "độ khó",
+  "easy": "dễ",
+  "normal": "bình thường",
+  "hard": "khó",
+  "peaceful": "yên bình"
+};
+
 function glossaryReplace(text, glossary) {
   let out = String(text);
   const entries = Object.entries(glossary || {})
@@ -219,6 +307,12 @@ async function translateNatural(text, source, target, pipe) {
   if (shouldKeepString(original)) return original;
 
   const glossary = window.__MCTS_BROWSER_GLOSSARY || {};
+  if (window.__MCTS_BROWSER_LOCAL_RULES) {
+    const localGlossary = source === "English" && target === "Vietnamese"
+      ? { ...MCTS_DEFAULT_EN_VI, ...glossary }
+      : glossary;
+    return glossaryReplace(original, localGlossary);
+  }
   const protectedText = maskProtected(original);
   let working = protectedText.text;
   const glossaryTargets = [];
@@ -484,8 +578,14 @@ async function translateZipInBrowser(file, options = {}) {
   const depth = Number(options.depth || 0);
   const skip = /(^|\/)(pack_icon\.png|manifest\.json\.bak|.*\.png|.*\.jpg|.*\.jpeg|.*\.webp|.*\.ogg|.*\.mp3|.*\.wav|.*\.mp4|.*\.mcstructure|.*\.bin)$/i;
 
-  options.onProgress?.({ phase: "model", progress: 0, label: "Đang chuẩn bị Browser AI..." });
-  const pipe = await getPipeline(source, target, options.onProgress);
+  const localRules = options.engine === "local";
+  window.__MCTS_BROWSER_LOCAL_RULES = localRules;
+  options.onProgress?.({
+    phase: "model",
+    progress: 0,
+    label: localRules ? "Đang chuẩn bị Local Rules..." : "Đang chuẩn bị Browser AI..."
+  });
+  const pipe = localRules ? null : await getPipeline(source, target, options.onProgress);
 
   const candidates = entries.filter(path => {
     const entry = zip.files[path];
@@ -579,11 +679,11 @@ async function translateZipInBrowser(file, options = {}) {
     blob,
     translated,
     entries,
-    model:
+    model: localRules ? "Local Rules" :
       modelKey(source, target) === "opus-en-vi" ? MCTS_MODEL_EN_VI :
       modelKey(source, target) === "opus-vi-en" ? MCTS_MODEL_VI_EN :
       MCTS_MODEL_NLLB,
-    device: chooseDevice()
+    device: localRules ? "local" : chooseDevice()
   };
 }
 
