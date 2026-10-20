@@ -275,10 +275,11 @@ async function translateNatural(text, source, target, pipe) {
 }
 
 function skipJsonKey(key) {
-  return /^(id|ids|key|keys|name|namespace|identifier|icon|texture|path|url|uuid|command|commands|type|format|version|module|modules|dependencies|description_id)$/i.test(String(key))
-    || (/^[a-z0-9_.:-]+$/.test(String(key)) && !/\s/.test(String(key)));
+  // JSON object keys are schema, not translation targets. Preserve only fields
+  // that are clearly machine identifiers; do not skip every lowercase key,
+  // because Bedrock displayName/title/description values are often lowercase-keyed.
+  return /^(id|ids|key|keys|namespace|identifier|icon|texture|path|url|uuid|command|commands|type|format|version|module|modules|dependencies|description_id|resource|resource_id)$/i.test(String(key));
 }
-
 function extractJsonStrings(value, key = "", out = []) {
   if (typeof value === "string") {
     if (!skipJsonKey(key)) out.push(value);
@@ -474,7 +475,9 @@ async function translateZipInBrowser(file, options = {}) {
   const zip = await zipLib.loadAsync(file);
   const out = new zipLib();
   const entries = Object.keys(zip.files);
-  const textExt = /\.(json|jsonc|lang|properties|yml|yaml|txt|mcfunction|ini|cfg|toml|xml|html|htm|js|ts|java|md)$/i;
+  // JSONC and TOML are intentionally excluded until comment-aware parsers are
+  // available. Treating them as plain text can corrupt syntax or configuration.
+  const textExt = /\.(json|lang|properties|yml|yaml|txt|mcfunction|ini|cfg|xml|html|htm|js|ts|java|md)$/i;
   const skip = /(^|\/)(pack_icon\.png|manifest\.json\.bak|.*\.png|.*\.jpg|.*\.jpeg|.*\.webp|.*\.ogg|.*\.mp3|.*\.wav|.*\.mp4|.*\.mcstructure|.*\.bin)$/i;
 
   options.onProgress?.({ phase: "model", progress: 0, label: "Đang chuẩn bị Browser AI..." });
