@@ -87,7 +87,8 @@ function updateModelHint(){
 function updateEngineUI(){
  const engine=$("engine").value;
  const browser=engine==="browser-ai";
- $("browserAiOptions").style.display=browser?"grid":"none";
+ const local=engine==="local";
+ $("browserAiOptions").style.display=(browser||local)?"grid":"none";
  $("cloudUrl").style.display=engine==="ai"?"block":"none";
  $("apiBase").disabled=browser||engine==="local";
  $("apiBase").style.opacity=browser||engine==="local"?".45":"1";
@@ -158,25 +159,26 @@ $("translateButton").addEventListener("click",async()=>{
  $("translateButton").disabled=true;
 
  try{
-  if(engine==="browser-ai"){
+  if(engine==="browser-ai"||engine==="local"){
    const browserAI=window.MC_TRANSLATE_BROWSER_AI;
-   if(!browserAI) throw new Error("Browser AI chưa được nạp. Hãy tải lại trang.");
+   if(!browserAI) throw new Error("Engine dịch trên trình duyệt chưa được nạp. Hãy tải lại trang.");
 
    const source=$("source").value;
    const target=$("target").value;
    if(source===target) throw new Error("Ngôn ngữ nguồn và đích phải khác nhau.");
 
-   setStatus("1/3 Đang mở Browser AI...");
+   setStatus(engine==="local"?"1/3 Đang mở Local Rules...":"1/3 Đang mở Browser AI...");
    const result=await browserAI.translateZipInBrowser(file,{
     source,
     target,
     glossary,
+    engine,
     onProgress:browserProgress
    });
 
    setStatus("2/3 Đang chuẩn bị file tải xuống...");
    downloadBlob(result.blob,"translated-"+file.name);
-   setStatus("3/3 Hoàn tất. "+result.translated+" file text đã được dịch. Model: "+result.model+" | "+result.device);
+   setStatus("3/3 Hoàn tất. "+result.translated+" file text đã được xử lý. Engine: "+result.model+" | "+result.device);
    return;
   }
 
