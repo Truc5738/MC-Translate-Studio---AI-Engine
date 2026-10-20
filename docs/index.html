@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#07111f">
-<title>MC Translate Studio</title>
+<meta name="theme-color" content="#080b13">\n<meta name="color-scheme" content="dark">\n<meta name="description" content="Translate Minecraft addons, resource packs and plugins with browser AI, local rules or cloud AI.">
+<title>MC Translate Studio · Liquid Glass</title>
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -29,7 +29,7 @@
   <div class="hero-copy">
     <div class="pill"><span>01</span> MINECRAFT TRANSLATION WORKSPACE</div>
     <h1>Make every<br><em>pack speak.</em></h1>
-    <p class="hero-text">Translate Minecraft Addons, Packs and Java plugins with AI running on your device — or use the cloud when you need it.</p>
+    <p class="hero-text">Translate Minecraft addons, resource packs and Java plugins with a private, local-first workflow. Use browser AI for model-based translation, Local Rules for fast glossary replacements, or cloud AI when configured.</p>
     <div class="hero-points">
       <span><b>AI</b> No API key</span>
       <span><b>LOCAL</b> No upload</span>
@@ -46,8 +46,8 @@
     <div class="dropzone" id="dropzone">
       <input id="file" type="file" accept=".mcaddon,.mcpack,.zip,.jar">
       <div class="drop-icon">↑</div>
-      <strong id="filename">Drop your Minecraft file here</strong>
-      <span>.MCADDON · .MCPACK · .ZIP · .JAR · up to your server limit</span>
+      <strong id="filename">Drop a Minecraft pack here</strong>
+      <span>.MCADDON · .MCPACK · .ZIP · .JAR · within supported size limits</span>
       <label for="file" class="choose">Choose file</label>
     </div>
 
@@ -83,7 +83,7 @@ My Custom Text = Văn bản của tôi"></textarea>
     </details>
 
     <div class="engine-note">
-      <div class="note-icon">✦</div><div><b id="engineHint">Browser AI runs on your device.</b><p id="modelHint">No API key. The first run downloads the translation model and may take a little longer.</p></div>
+      <div class="note-icon">✦</div><div><b id="engineHint">Browser AI runs on your device.</b><p id="modelHint">No API key required. The first run downloads a translation model to your browser and may take a little longer.</p></div>
     </div>
 
     <button id="translateButton" class="primary">Translate pack <span>↗</span></button>
@@ -99,7 +99,7 @@ My Custom Text = Văn bản của tôi"></textarea>
 
 <section id="repair" class="section-grid">
   <div class="section-card repair-card">
-    <div class="section-icon">⌁</div><div><div class="kicker">REPAIR CENTER</div><h2>Check a pack before release.</h2><p>Analyze manifests, plugin.yml, JSON/YAML and server logs without executing uploaded code.</p><a class="outline" id="repairLink" href="#">Open Repair Center <span>↗</span></a></div>
+    <div class="section-icon">⌁</div><div><div class="kicker">REPAIR CENTER</div><h2>Check a pack before release.</h2><p>Validate manifests, plugin.yml, JSON/YAML and server logs without executing uploaded code.</p><a class="outline" id="repairLink" href="#">Open Repair Center <span>↗</span></a></div>
   </div>
   <div class="section-card">
     <div class="section-icon">24</div><div><div class="kicker">CLOUD PIPELINE</div><h2>Queue when you need scale.</h2><p>AI Cloud uses the existing Vercel Blob + Queue + Gemini/Groq pipeline. Browser AI does not depend on it.</p></div>
