@@ -478,6 +478,10 @@ async function translateZipInBrowser(file, options = {}) {
   // JSONC and TOML are intentionally excluded until comment-aware parsers are
   // available. Treating them as plain text can corrupt syntax or configuration.
   const textExt = /\.(json|lang|properties|yml|yaml|txt|mcfunction|ini|cfg|xml|html|htm|js|ts|java|md)$/i;
+  const nestedArchive = /\.(mcaddon|mcpack|zip)$/i;
+  const maxNestedDepth = 3;
+  const maxNestedArchiveBytes = 50 * 1024 * 1024;
+  const depth = Number(options.depth || 0);
   const skip = /(^|\/)(pack_icon\.png|manifest\.json\.bak|.*\.png|.*\.jpg|.*\.jpeg|.*\.webp|.*\.ogg|.*\.mp3|.*\.wav|.*\.mp4|.*\.mcstructure|.*\.bin)$/i;
 
   options.onProgress?.({ phase: "model", progress: 0, label: "Đang chuẩn bị Browser AI..." });
@@ -485,7 +489,9 @@ async function translateZipInBrowser(file, options = {}) {
 
   const candidates = entries.filter(path => {
     const entry = zip.files[path];
-    return !entry.dir && textExt.test(path) && !skip.test(path);
+    return !entry.dir &&
+      ((textExt.test(path) && !skip.test(path)) ||
+       (depth < maxNestedDepth && nestedArchive.test(path)));
   });
 
   let translated = 0;
@@ -499,6 +505,34 @@ async function translateZipInBrowser(file, options = {}) {
     }
 
     const blob = await entry.async("blob");
+
+    if (
+      nestedArchive.test(path) &&
+      depth < maxNestedDepth &&
+      blob.size <= maxNestedArchiveBytes
+    ) {
+      try {
+        // A .mcaddon commonly contains .mcpack files, which are ZIPs themselves.
+        const nested = await translateZipInBrowser(blob, {
+          ...options,
+          depth: depth + 1
+        });
+        out.file(path, nested.blob);
+        translated += nested.translated;
+      } catch {
+        // Preserve malformed or unsupported nested archives without corrupting them.
+        out.file(path, blob);
+      }
+      finished++;
+      options.onProgress?.({
+        phase: "files",
+        current: finished,
+        total: Math.max(candidates.length, 1),
+        label: path
+      });
+      continue;
+    }
+
     if (!textExt.test(path) || skip.test(path) || blob.size >= 500_000) {
       out.file(path, blob);
       continue;
